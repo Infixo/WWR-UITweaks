@@ -1,11 +1,8 @@
-﻿using System;
-//using System.Linq;
-//using System.Reflection;
-//using System.Reflection.Emit;
-//using System.Runtime.CompilerServices;
+﻿using HarmonyLib;
+using STVisual.Utility;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
-//using HarmonyLib;
-
 
 namespace TestMod;
 
@@ -25,18 +22,29 @@ public static class ModEntry
     public static int InitializeMod()
     {
         DebugConsole.Show();
-        Log.Write($"{nameof(InitializeMod)}. HarmonyId is {harmonyId}.");
-        // Harmony
-        //var harmony = new Harmony(harmonyId);
-        //harmony.PatchAll(typeof(Mod).Assembly);
-        //harmony.PatchAll();
-        //var patchedMethods = harmony.GetPatchedMethods().ToArray();
-        //log.Info($"Plugin {harmonyId} made patches! Patched methods: " + patchedMethods.Length);
-        //foreach (var patchedMethod in patchedMethods)
-        //{
-        //Log.Write($"Patched method: {patchedMethod.Module.Name}:{patchedMethod.DeclaringType.Name}.{patchedMethod.Name}");
-        //}
-        // do stuff here to initialize
+        DebugConsole.SetAlwaysOnTop();
+        DebugConsole.SetFont(12);
+        //OverlayConsole.Initialize(); // too complex atm
+        Log.Write($"WWR mod {nameof(TestMod)} successfully started, harmonyId is {harmonyId}.");
+        try
+        {
+            // Harmony
+            var harmony = new Harmony(harmonyId);
+            //harmony.PatchAll(typeof(Mod).Assembly);
+            harmony.PatchAll();
+            var patchedMethods = harmony.GetPatchedMethods().ToArray();
+            Log.Write($"Plugin {harmonyId} made patches! Patched methods: " + patchedMethods.Length);
+            foreach (var patchedMethod in patchedMethods)
+            {
+                Log.Write($"Patched method: {patchedMethod.Module.Name}:{patchedMethod.DeclaringType.Name}.{patchedMethod.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Write("EXCEPTION");
+            Log.Write(ex.ToString());
+        }
+        // do other stuff here to initialize
         return 0;
     }
 
@@ -49,17 +57,7 @@ public static class ModEntry
     }
 }
 
-// Example patch
-/*
-[HarmonyPatch(typeof(Mod), "GetDefault")]
-public static class LabelPatch
-{
-    static void Postfix(ref Label __result)
-    {
-        //__result.Text += " [MODDED]";
-    }
-}
-*/
+
 
 public static class Log
 {
@@ -69,6 +67,8 @@ public static class Log
     /// <param name="logMessage">The message to write to the log.</param>
     public static void Write(string logMessage)
     {
+        logMessage = GetCallingMethod(2) + ": " + logMessage;
+
         // Simple console output
         Console.WriteLine(logMessage);
 
@@ -92,6 +92,19 @@ public static class Log
             // Log any potential errors to the console.
             Console.WriteLine($"Error writing to log file: {ex.Message}");
         }
+
+        // TEST DRAW DEBUG
+        //OverlayConsole.Output(logMessage); // too complex atm
+    }
+
+    /// <summary>
+    /// Gets the method from the specified <paramref name="frame"/>.
+    /// </summary>
+    public static string GetCallingMethod(int frame)
+    {
+        StackTrace st = new StackTrace();
+        MethodBase mb = st.GetFrame(frame).GetMethod(); // 0 - GetCallingMethod, 1 - Log, 2 - actual function calling a Log method
+        return mb.DeclaringType + "." + mb.Name;
     }
 }
 
@@ -117,5 +130,77 @@ public static class DebugConsole
     {
         if (GetConsoleWindow() != IntPtr.Zero)
             FreeConsole();
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+           IntPtr hWnd,
+           IntPtr hWndInsertAfter,
+           int X, int Y, int cx, int cy,
+           uint uFlags);
+
+    // SetWindowPos flags from WinUser.h
+    private const int SWP_NOSIZE = 0x0001;
+    private const int SWP_NOMOVE = 0x0002;
+    private const int SWP_NOACTIVATE = 0x0010;
+    private const int HWND_TOPMOST = -1;
+    private const int HWND_NOTOPMOST = -2;
+
+    public static void SetAlwaysOnTop(bool enable = true)
+    {
+        IntPtr handle = GetConsoleWindow();
+        if (handle == IntPtr.Zero) return;
+
+        SetWindowPos(
+            handle,
+            (IntPtr)(enable ? HWND_TOPMOST : HWND_NOTOPMOST),
+            0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE);
+    }
+
+    // FONT definition from Wincon.h
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct CONSOLE_FONT_INFO_EX
+    {
+        public uint cbSize; // ULONG Unsigned long 4 bytes, long in C# is 64 bits!
+        public uint nFont; // DWORD 32-bit unsigned integer 4 bytes
+        public Coord dwFontSize; // COORD
+        public uint FontFamily; // UINT 32-bit unsigned integer 4 bytes
+        public uint FontWeight; // UINT
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string FaceName; // WCHAR[32]
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Coord
+    {
+        public short X; // SHORT 16-bit signed
+        public short Y; // SHORT
+
+        public Coord(short x, short y) { X = x; Y = y; }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetCurrentConsoleFontEx(
+        IntPtr consoleOutput,
+        bool maximumWindow,
+        ref CONSOLE_FONT_INFO_EX consoleCurrentFontEx);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr GetStdHandle(int nStdHandle);
+
+    private const int STD_OUTPUT_HANDLE = -11; // Standard output (console)
+
+    public static void SetFont(short fontSizeY = 12, string fontName = "Consolas")
+    {
+        IntPtr hnd = GetStdHandle(STD_OUTPUT_HANDLE);
+        var info = new CONSOLE_FONT_INFO_EX();
+        info.cbSize = (uint)Marshal.SizeOf(info);
+        info.FaceName = fontName;
+        info.dwFontSize = new Coord(0, fontSizeY); // 0 means automatic width
+        info.FontFamily = 0x30 + 0x01 + 0x04;  // FF_MODERN + FIXED_PITCH + TMPF_TRUETYPE from wingdi.h
+        info.FontWeight = 400; // normal weight
+
+        SetCurrentConsoleFontEx(hnd, false, ref info);
     }
 }
