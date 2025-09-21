@@ -1,8 +1,9 @@
-﻿using HarmonyLib;
-using STVisual.Utility;
+﻿using System.Text;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using HarmonyLib;
+using System.Security.Cryptography.X509Certificates;
 
 namespace TestMod;
 
@@ -65,9 +66,9 @@ public static class Log
     /// Writes a string message to a log file in the user's temporary directory.
     /// </summary>
     /// <param name="logMessage">The message to write to the log.</param>
-    public static void Write(string logMessage)
+    public static void Write(string logMessage, bool includeMethod = true)
     {
-        logMessage = GetCallingMethod(2) + ": " + logMessage;
+        if (includeMethod) logMessage = GetCallingMethod(2) + ": " + logMessage;
 
         // Simple console output
         Console.WriteLine(logMessage);
@@ -106,7 +107,55 @@ public static class Log
         MethodBase mb = st.GetFrame(frame).GetMethod(); // 0 - GetCallingMethod, 1 - Log, 2 - actual function calling a Log method
         return mb.DeclaringType + "." + mb.Name;
     }
+
+    /// <summary>
+    /// Returns a string representation of the calling stack up to the specified number of frames.
+    /// </summary>
+    /// <param name="frames">The number of frames to return from the calling stack.</param>
+    /// <returns>
+    /// A string with each frame on a new line, formatted as &lt;namespace&gt;.&lt;class&gt;.&lt;method&gt;.
+    /// </returns>
+    public static void WriteCallingStack(int frames)
+    {
+        //var sb = new StringBuilder();
+
+        // StackTrace is a class in the System.Diagnostics namespace that provides
+        // information about the call stack for the current thread.
+        StackTrace stackTrace = new StackTrace();
+
+        // Start from frame 1 to exclude the current GetCallingStack method itself.
+        // We iterate for the requested number of frames or until we reach the end of the stack.
+        for (int i = 1; i <= frames && i < stackTrace.FrameCount; i++)
+        {
+            // Get the method information for the current frame.
+            MethodBase method = stackTrace.GetFrame(i).GetMethod();
+
+            if (method != null)
+            {
+                // Get the type (class) where the method is declared.
+                Type declaringType = method.DeclaringType;
+                
+                string fullMethodName;
+                if (declaringType != null)
+                {
+                    fullMethodName = $"{declaringType.FullName}.{method.Name}"; // Construct the full method name
+                }
+                else
+                {
+                    // If declaringType is null, we can't get the namespace and class.
+                    // This might happen for dynamic methods or others.
+                    fullMethodName = method.Name;
+                }
+                //sb.AppendLine(fullMethodName); // adds a new line also
+                Write(String.Concat(Enumerable.Repeat("  ", i), fullMethodName), false);
+            }
+            else
+                Write("error - method is null", false);
+        }
+        //return sb.ToString();
+    }
 }
+
 
 public static class DebugConsole
 {
