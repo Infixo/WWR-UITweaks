@@ -1,22 +1,18 @@
-﻿using HarmonyLib;
+﻿using System.Runtime.CompilerServices;
+using HarmonyLib;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace TestMod;
+namespace UITweaks.Patches;
 
 [HarmonyPatch(typeof(UpgradeUI))]
 public static class UpgradeUI_Patches
 {
+    /* not used
     [HarmonyPatch("Get"), HarmonyPrefix]
     public static bool UpgradeUI_Get_Prefix(UpgradeUI __instance, IControl parent, VehicleBaseUser vehicle, GameScene scene)
     {
@@ -24,6 +20,7 @@ public static class UpgradeUI_Patches
         //Log.WriteCallingStack(10);
         return true; // continue
     }
+    */
 
     // this method fills up available vehicles; all fields are private in this class
     [HarmonyPatch("GetVehiclesOptions"), HarmonyPrefix]
@@ -32,7 +29,7 @@ public static class UpgradeUI_Patches
         GrowArray<VehicleBaseEntity> ___options, // private field
         Grid grid)
     {
-        Log.Write($"grid {grid.Columns_count}x{grid.Rows_count} n={grid.Items_count}");
+        //Log.Write($"grid {grid.Columns_count}x{grid.Rows_count} n={grid.Items_count}"); // debug
         GrowArray<SimpleDropdownItem> _items = new GrowArray<SimpleDropdownItem>();
         for (int i = 0; i < ___options.Count; i++)
         {

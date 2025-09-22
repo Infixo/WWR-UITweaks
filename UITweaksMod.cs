@@ -3,13 +3,13 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using HarmonyLib;
-using System.Security.Cryptography.X509Certificates;
+using UITweaks.Patches;
 
-namespace TestMod;
+namespace UITweaks;
 
 public static class ModEntry
 {
-    public static readonly string harmonyId = "Infixo." + nameof(TestMod);
+    public static readonly string harmonyId = "Infixo." + nameof(UITweaks);
 
     // mod's instance and asset
     //public static Mod instance { get; private set; }
@@ -23,10 +23,10 @@ public static class ModEntry
     public static int InitializeMod()
     {
         DebugConsole.Show();
-        DebugConsole.SetAlwaysOnTop();
+        //DebugConsole.SetAlwaysOnTop();
         DebugConsole.SetFont(12);
         //OverlayConsole.Initialize(); // too complex atm
-        Log.Write($"WWR mod {nameof(TestMod)} successfully started, harmonyId is {harmonyId}.");
+        Log.Write($"WWR mod {nameof(UITweaks)} successfully started, harmonyId is {harmonyId}.");
         try
         {
             // Harmony
@@ -46,6 +46,7 @@ public static class ModEntry
             Log.Write(ex.ToString());
         }
         // do other stuff here to initialize
+        //CityWorldGraphics_Patches.DebugColors();
         return 0;
     }
 
@@ -74,7 +75,7 @@ public static class Log
         Console.WriteLine(logMessage);
 
         // Combine the temporary path with the log file name.
-        string filePath = Path.Combine(Path.GetTempPath(), nameof(TestMod) + "Log.txt");
+        string filePath = Path.Combine(Path.GetTempPath(), nameof(UITweaks) + "Log.txt");
 
         try
         {
@@ -103,7 +104,7 @@ public static class Log
     /// </summary>
     public static string GetCallingMethod(int frame)
     {
-        StackTrace st = new StackTrace();
+        StackTrace st = new();
         MethodBase mb = st.GetFrame(frame).GetMethod(); // 0 - GetCallingMethod, 1 - Log, 2 - actual function calling a Log method
         return mb.DeclaringType + "." + mb.Name;
     }
@@ -121,7 +122,7 @@ public static class Log
 
         // StackTrace is a class in the System.Diagnostics namespace that provides
         // information about the call stack for the current thread.
-        StackTrace stackTrace = new StackTrace();
+        StackTrace stackTrace = new();
 
         // Start from frame 1 to exclude the current GetCallingStack method itself.
         // We iterate for the requested number of frames or until we reach the end of the stack.

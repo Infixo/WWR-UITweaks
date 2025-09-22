@@ -1,2 +1,2 @@
-# WWR-TestMod
-Worlwide Rush test mod
+# Worldwide Rush Infixo's UI Tweaks
+Worlwide Rush mod that adds some UI enhancements to the game.

@@ -2,7 +2,10 @@
 using System.Reflection;
 using System.Linq;
 
-namespace ShoppingFix;
+namespace UITweaks;
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning disable CS8602 
+#pragma warning disable CS8603 
 
 public static class ExtensionsHelper
 {
@@ -49,3 +52,7 @@ public static class ExtensionsHelper
         return (T)method.Invoke(obj, param);
     }
 }
+
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8602
+#pragma warning restore CS8603
