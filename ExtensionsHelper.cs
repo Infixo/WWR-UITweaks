@@ -51,6 +51,18 @@ public static class ExtensionsHelper
         MethodInfo method = type.GetMethod(name, flags);
         return (T)method.Invoke(obj, param);
     }
+
+    // 2025-09-22 Infixo: Accessing a property that is public but its Setter is private
+    public static void SetPublicProperty(this object obj, string name, object value)
+    {
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
+        Type type = obj.GetType();
+        PropertyInfo field = type.GetProperty(name, flags);
+        // Now, get the private setter method. The 'true' argument is crucial, we're looking for a non-public method.
+        var setter = field.GetSetMethod(true);
+        if (setter != null)
+            setter.Invoke(obj, [value]);
+    }
 }
 
 #pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.

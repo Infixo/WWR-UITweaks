@@ -31,10 +31,10 @@ public static class CreateNewRouteAction_Patches
                     Localization.GetGeneral("inventory"),
                     Localization.GetGeneral("price"),
                     // MODDED
-                    "profit", // 6
-                    "effic", // 7
-                    "through", // 8
-                    "range", // 9
+                    "profit", // 6 Localization.GetVehicle("estimated_profit")
+                    "effic", // 7 Localization.GetGeneral("efficiency")
+                    "through", // 8 Localization.GetGeneral("passengers")
+                    "range", // 9 Localization.GetGeneral("range")
                 },
                 on_select,
                 is_selected,

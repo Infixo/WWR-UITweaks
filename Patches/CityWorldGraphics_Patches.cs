@@ -107,11 +107,7 @@ public static class CityWorldGraphics_Patches
         }
 
         // Infixo: get the color based on overcrowding
-        int overcrowded = city.GetTotalIndirect() * 100 / city.GetMaxIndirect();
-        if (overcrowded > 150) color = Color.DarkRed;
-        else if (overcrowded > 100) color = Color.Red;
-        else if (overcrowded > 75) color = Color.DarkOrange;
-        else if (overcrowded > 50) color = Color.Yellow;
+        color = OvercrowdedColor(city, color);
 
         if (hover)
         {
@@ -169,6 +165,18 @@ public static class CityWorldGraphics_Patches
         // END
         return false; // skip the original
     }
+
+
+    public static Color OvercrowdedColor(CityUser city, Color defColor)
+    {
+        int ratio = city.GetTotalIndirect() * 100 / city.GetMaxIndirect();
+        if (ratio > 150) return Color.DarkRed;
+        else if (ratio > 100) return Color.Red;
+        else if (ratio > 75) return Color.DarkOrange;
+        else if (ratio > 50) return Color.Yellow;
+        return defColor;
+    }
+
 
     public static void DebugColors()
     {

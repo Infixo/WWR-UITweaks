@@ -37,7 +37,9 @@ public static class ModEntry
             Log.Write($"Plugin {harmonyId} made patches! Patched methods: " + patchedMethods.Length);
             foreach (var patchedMethod in patchedMethods)
             {
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
                 Log.Write($"Patched method: {patchedMethod.Module.Name}:{patchedMethod.DeclaringType.Name}.{patchedMethod.Name}");
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
             }
         }
         catch (Exception ex)
@@ -99,6 +101,9 @@ public static class Log
         //OverlayConsole.Output(logMessage); // too complex atm
     }
 
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
+
     /// <summary>
     /// Gets the method from the specified <paramref name="frame"/>.
     /// </summary>
@@ -135,7 +140,7 @@ public static class Log
             {
                 // Get the type (class) where the method is declared.
                 Type declaringType = method.DeclaringType;
-                
+
                 string fullMethodName;
                 if (declaringType != null)
                 {
@@ -156,6 +161,9 @@ public static class Log
         //return sb.ToString();
     }
 }
+
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
 
 public static class DebugConsole
