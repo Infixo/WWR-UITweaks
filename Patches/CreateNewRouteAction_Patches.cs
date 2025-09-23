@@ -88,7 +88,6 @@ public static class CreateNewRouteAction_Patches
         // its a stub so it has no initial content
         throw new NotImplementedException("ERROR. CreateNewRouteAction_GetTooltip_Reverse");
 
-
     [HarmonyPatch("GetFilterCategories"), HarmonyReversePatch]
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static FilterCategory[] CreateNewRouteAction_GetFilterCategories_Reverse(GameScene scene) =>

@@ -8,15 +8,11 @@
 
   <ItemGroup>
     <Compile Remove="OverlayConsole.cs" />
-    <Compile Remove="Patches\CreateNewRouteAction_Patches.cs" />
-    <Compile Remove="Patches\ExplorerVehicleEntity_Patches.cs" />
     <Compile Remove="Utils.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="OverlayConsole.cs" />
-    <None Include="Patches\CreateNewRouteAction_Patches.cs" />
-    <None Include="Patches\ExplorerVehicleEntity_Patches.cs" />
     <None Include="Utils.cs" />
   </ItemGroup>
   

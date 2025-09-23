@@ -1,15 +1,19 @@
 ﻿using HarmonyLib;
 using Microsoft.Xna.Framework;
 using ShoppingFix;
+using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
+using STVisual.Utility;
 using System;
 using System.Diagnostics;
+using System.Net.Sockets;
 using System.Reflection;
+using System.Reflection.Emit;
 //using System.Reflection.Emit;
 
 namespace UITweaks.Patches;
@@ -35,7 +39,72 @@ public static class ExplorerVehicleEntity_Patches
         //__instance.Labels[9].Text = "range";
     }
 
-    [HarmonyPatch("GetMainControl"), HarmonyPostfix]
+
+    private void GetMainControl(GameScene scene, Company company, CityUser city)
+    {
+        Labels = new Label[6];
+        int _height = 32;
+        main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
+        main_button.Opacity = 0f;
+        main_button.horizontal_alignment = HorizontalAlignment.Stretch;
+        main_button.OnMouseStillTime += (Action)delegate
+        {
+            GetTooltip(scene);
+        };
+        alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
+        alt.Opacity = 0f;
+        _collection.Transfer(alt);
+        main_grid = new Grid(ContentRectangle.Stretched, Labels.Length, 1, SizeType.Weight);
+        _collection.Transfer(main_grid);
+        Label _name = LabelPresets.GetDefault(GetName(), scene.Engine);
+        _name.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_name, 0, 0);
+        Labels[0] = _name;
+        if (Locked)
+        {
+            Labels[0].Color = LabelPresets.Color_negative;
+        }
+        Label _company = LabelPresets.GetDefault(Entity.Company.Entity.Translated_name, scene.Engine);
+        _company.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_company, 1, 0);
+        Labels[1] = _company;
+        string _scapacity = ((!(Entity is TrainEntity _train)) ? StrConversions.CleanNumber(Entity.Capacity) : StrConversions.OutOf(Entity.Capacity, _train.Max_capacity));
+        Label _capacity = LabelPresets.GetDefault(_scapacity, scene.Engine);
+        _capacity.horizontal_alignment = HorizontalAlignment.Center;
+        _capacity.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_capacity, 2, 0);
+        Labels[2] = _capacity;
+        Label _speed = LabelPresets.GetDefault(StrConversions.GetSpeed(Entity.Speed), scene.Engine);
+        _speed.horizontal_alignment = HorizontalAlignment.Center;
+        _speed.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_speed, 3, 0);
+        Labels[3] = _speed;
+        stock = Entity.GetInventory(scene.Session.GetPlayer(), country, scene);
+        int _add = Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(Entity);
+        if (country == Entity.Company.Entity.Country.Item)
+        {
+            CountryBuff _buff = country.Buff;
+            if (_buff != null && _buff.Buff == CountryBuff.BuffType.Local_stock)
+            {
+                _add = (int)((decimal)_add * (1m + _buff.Percent));
+            }
+        }
+        Label _stock = LabelPresets.GetDefault(StrConversions.OutOf(stock, _add), scene.Engine);
+        _stock.horizontal_alignment = HorizontalAlignment.Center;
+        _stock.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_stock, 4, 0);
+        Labels[4] = _stock;
+        Label _price = LabelPresets.GetDefault(StrConversions.GetBalance(price, scene.currency), scene.Engine);
+        _price.horizontal_alignment = HorizontalAlignment.Right;
+        _price.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_price, 5, 0);
+        Labels[5] = _price;
+    }
+
+
+/* Prefix must be used because main_grid is created inside the method
+
+[HarmonyPatch("GetMainControl"), HarmonyPostfix]
     public static void GetMainControl(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
     {
         //Log.Write($"ORG {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
@@ -66,7 +135,8 @@ public static class ExplorerVehicleEntity_Patches
         __instance.Labels[8] = LabelPresets.GetBold("999", scene.Engine, Color.Red);
         __instance.Labels[9] = LabelPresets.GetBold("9999", scene.Engine);
     }
-
+*/
+    /*
     [HarmonyPatch("Smaller"), HarmonyPrefix]
     public static bool ExplorerVehicleEntity_Smaller_Prefix(ExplorerVehicleEntity __instance, ref bool __result, IExplorerItem item, int sort_id)
     {
@@ -74,6 +144,7 @@ public static class ExplorerVehicleEntity_Patches
         __result = Smaller_Modded(__instance, item, sort_id);
         return false; // skip original
     }
+    */
 
     // Worldwide Rush, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
     // STM.UI.Explorer.ExplorerVehicleEntity
