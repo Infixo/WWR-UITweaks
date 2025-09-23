@@ -260,114 +260,76 @@ public static class ExplorerVehicleEntity_Patches
         }
 
         int sortColumn = sort_id % __instance.Labels.Length;
-        //bool normalOrder = sort_id < __instance.Labels.Length; // we will use xor later to flip the result if needed
-        // looks like the sort function is bugged and tries to compare the instance with itself or with a copy that has the same data
-        // it causes infinite loop and xor cannot be used because !<0 is >=0 and >0 is needed to not go into the loop
         int result = 0; // temporary comparison, for normal order result<0, for reversed order resut>0
 
+        switch (sort_id % __instance.Labels.Length) // sort column
+        {
+            case 0: // Name
+                result = __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text);
+                break;
+
+            case 1: // Company
+                result = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
+                break;
+
+            case 2: // Capacity
+                result = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity").CompareTo(ExtensionsHelper.GetPrivateField<int>(_item, "capacity"));
+                break;
+
+            case 3: // min passengers
+                result = __instance.Entity.Real_min_passengers.CompareTo(_item.Entity.Real_min_passengers);
+                break;
+
+            case 4: // min%
+                float minThis = (float)__instance.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
+                float minItem = (float)_item.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(_item, "capacity");
+                result = minThis.CompareTo(minItem);
+                break;
+
+            case 5: // Speed
+                result = __instance.Entity.Speed.CompareTo(_item.Entity.Speed);
+                break;
+
+            case 6: // Inventory
+                int stockThis = ExtensionsHelper.GetPrivateField<int>(__instance, "stock");
+                int stockItem = ExtensionsHelper.GetPrivateField<int>(_item, "stock");
+                result = stockThis.CompareTo(stockItem);
+                break;
+
+            case 7: // Price
+                long priceThis = ExtensionsHelper.GetPrivateField<long>(__instance, "price");
+                long priceItem = ExtensionsHelper.GetPrivateField<long>(_item, "price");
+                result = priceThis.CompareTo(priceItem);
+                break;
+
+            case 8: // Profit
+                result = __instance.Entity.GetEstimatedProfit().CompareTo(_item.Entity.GetEstimatedProfit());
+                break;
+
+            case 9: // Throughput
+                result = 0; // temp
+                break;
+
+            case 10: // Range 
+                int rangeThis = __instance.Entity is PlaneEntity planeThis ? planeThis.Range : -1;
+                int rangeItem = _item.Entity is PlaneEntity planeItem ? planeItem.Range : -1;
+                if (rangeThis < 0 && rangeItem < 0) // go for backup
+                    result = 0;
+                else result = rangeItem.CompareTo(rangeThis); // reverse order by default!
+                break;
+        }
+
         // fallback for sorting - always by price, then by names if prices are the same
-        int BackupCompare()
+        if (result == 0)
         {
             long priceThis = ExtensionsHelper.GetPrivateField<long>(__instance, "price");
             long priceItem = ExtensionsHelper.GetPrivateField<long>(_item, "price");
-            int result = priceThis.CompareTo(priceItem);
+            result = priceThis.CompareTo(priceItem);
             if (result == 0)
             {
-                return __instance.Labels[0].Text.CompareTo(item.Labels[0].Text);
+                result = __instance.Labels[0].Text.CompareTo(item.Labels[0].Text);
             }
-            return result;
         }
-
-        // 0 Name
-        if (sortColumn == 0)
-        {
-            result = __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text);
-        }
-       
-        // 1 Company
-        if (sortColumn == 1)
-        {
-            result = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
-        }
-
-        // 2 Capacity
-        if (sortColumn == 2)
-        {
-            result = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity").CompareTo(ExtensionsHelper.GetPrivateField<int>(_item, "capacity"));
-        }
-
-        // 3 min passengers
-        if (sortColumn == 3)
-        {
-            result = __instance.Entity.Real_min_passengers.CompareTo(_item.Entity.Real_min_passengers);
-        }
-
-        // 4 min%
-        if (sortColumn == 4)
-        {
-            float minThis = (float)__instance.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
-            float minItem = (float)_item.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(_item, "capacity");
-            result = minThis.CompareTo(minItem);
-        }
-
-        /*
-        if (sort_id == 3)
-        {
-            int _result6 = Entity.Speed.CompareTo(_item.Entity.Speed);
-            if (_result6 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result6 < 0;
-        }
-        if (sort_id - Labels.Length == 3)
-        {
-            int _result5 = Entity.Speed.CompareTo(_item.Entity.Speed);
-            if (_result5 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result5 > 0;
-        }
-        if (sort_id == 4)
-        {
-            int _result4 = stock.CompareTo(_item.stock);
-            if (_result4 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result4 < 0;
-        }
-        if (sort_id - Labels.Length == 4)
-        {
-            int _result3 = stock.CompareTo(_item.stock);
-            if (_result3 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result3 > 0;
-        }
-        if (sort_id == 5)
-        {
-            int _result2 = price.CompareTo(_item.price);
-            if (_result2 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result2 < 0;
-        }
-        if (sort_id - Labels.Length == 5)
-        {
-            int _result = price.CompareTo(_item.price);
-            if (_result == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result > 0;
-        }*/
-
-        if (result == 0)
-            result = BackupCompare();
 
         // Normal order: sortid < length, Reverse order: sortid >= length
         __result = (sort_id < __instance.Labels.Length) ? result < 0 : result > 0;
