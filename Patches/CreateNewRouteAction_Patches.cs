@@ -18,23 +18,25 @@ public static class CreateNewRouteAction_Patches
     public static bool CreateNewRouteAction_GenerateVehiclesSelection_Prefix(Action<ExplorerVehicleEntity> on_select, Func<ExplorerVehicleEntity, bool> is_selected, NewRouteSettings route, IControl parent, GameScene scene, bool above, string history, byte type = byte.MaxValue, long price_adjust = 0L)
     {
         {
-            Log.Write($"name={route.Name} cities={route.Cities.Count} vehicle={route.vehicle} price={price_adjust} typ={type}");
+            //Log.Write($"name={route.Name} cities={route.Cities.Count} vehicle={route.vehicle} price={price_adjust} typ={type}");
 
             // create the window
             ExplorerUI<ExplorerVehicleEntity> _explorer = new ExplorerUI<ExplorerVehicleEntity>(
-                new string[10] // categories
+                new string[11] // categories
                 {
-                    Localization.GetGeneral("name"),
-                    Localization.GetCompany("company"),
-                    Localization.GetGeneral("capacity"),
-                    Localization.GetStats("speed"),
-                    Localization.GetGeneral("inventory"),
-                    Localization.GetGeneral("price"),
+                    Localization.GetGeneral("name"), // 0
+                    Localization.GetCompany("company"), // 1
+                    Localization.GetGeneral("capacity"), // 2
+                    "Min<!cicon_passenger>", // 3
+                    "Min%", // 4
+                    Localization.GetStats("speed"), //5
+                    Localization.GetGeneral("inventory"), //6
+                    Localization.GetGeneral("price"), //7
                     // MODDED
-                    "profit", // 6 Localization.GetVehicle("estimated_profit")
-                    "effic", // 7 Localization.GetGeneral("efficiency")
-                    "through", // 8 Localization.GetGeneral("passengers")
-                    "range", // 9 Localization.GetGeneral("range")
+                    "Profit", // 8 Localization.GetVehicle("estimated_profit")
+                    //Localization.GetGeneral("efficiency"),
+                    Localization.GetGeneral("passengers"), // 9 throughput
+                    Localization.GetGeneral("range"), // 10
                 },
                 on_select,
                 is_selected,
@@ -49,6 +51,7 @@ public static class CreateNewRouteAction_Patches
                 CreateNewRouteAction_GetFilterCategories_Reverse(scene));
 
             // -------------
+#pragma warning disable CS8604 // Possible null reference argument.
             if (route != null)
             {
                 _explorer.city = route.Cities.TryGet(0, null);
@@ -77,6 +80,7 @@ public static class CreateNewRouteAction_Patches
             {
                 _explorer.AddToControlAuto(parent);
             }
+#pragma warning restore CS8604 // Possible null reference argument.
         }
 
         return false; // skip original

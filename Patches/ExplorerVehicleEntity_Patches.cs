@@ -6,9 +6,12 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
+using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace UITweaks.Patches;
 
@@ -16,6 +19,8 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerVehicleEntity))]
 public static class ExplorerVehicleEntity_Patches
 {
+    /* not needed
+     * 
     [HarmonyPatch(
         typeof(ExplorerVehicleEntity),
         MethodType.Constructor,
@@ -32,13 +37,14 @@ public static class ExplorerVehicleEntity_Patches
         //__instance.Labels[8].Text = "through";
         //__instance.Labels[9].Text = "range";
     }
+    */
 
 
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerVehicleEntity_GetMainControl_Prefix(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
     {
         // define more labels
-        Label[] tmpLabels = new Label[10];
+        Label[] tmpLabels = new Label[11];
         ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
 
         // control - button
@@ -59,6 +65,15 @@ public static class ExplorerVehicleEntity_Patches
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
         _collection.Transfer(main_grid);
 
+        // Helper
+        void InsertLabel(int at, Label label, HorizontalAlignment align = HorizontalAlignment.Center)
+        {
+            label.horizontal_alignment = align;
+            label.Margin_local = new FloatSpace(MainData.Margin_content);
+            main_grid.Transfer(label, at, 0);
+            __instance.Labels[at] = label;
+        }
+
         // 0 Name
         Label _name = LabelPresets.GetDefault(ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetName", []), scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
@@ -76,21 +91,30 @@ public static class ExplorerVehicleEntity_Patches
         __instance.Labels[1] = _company;
 
         // 2 Capacity
-        string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
-        Label _capacity = LabelPresets.GetDefault(_scapacity, scene.Engine);
-        _capacity.horizontal_alignment = HorizontalAlignment.Center;
-        _capacity.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_capacity, 2, 0);
-        __instance.Labels[2] = _capacity;
+        //string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
+        Label _capacity = LabelPresets.GetDefault(StrConversions.CleanNumber(ExtensionsHelper.GetPrivateField<int>(__instance, "capacity")), scene.Engine);
+        //_capacity.horizontal_alignment = HorizontalAlignment.Center;
+        //_capacity.Margin_local = new FloatSpace(MainData.Margin_content);
+        //main_grid.Transfer(_capacity, 2, 0);
+        //__instance.Labels[2] = _capacity;
+        InsertLabel(2, _capacity);
 
-        // 3 Speed
+        // 3 min passengeres
+        Label _minPass = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.Entity.Real_min_passengers), scene.Engine);
+        InsertLabel(3, _minPass);
+
+        // 4 min%
+        Label _minPerc = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.Entity.Real_min_passengers / (float)__instance.Entity.Capacity), scene.Engine);
+        InsertLabel(4, _minPerc);
+
+        // 3 Speed => 5
         Label _speed = LabelPresets.GetDefault(StrConversions.GetSpeed(__instance.Entity.Speed), scene.Engine);
         _speed.horizontal_alignment = HorizontalAlignment.Center;
         _speed.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_speed, 3, 0);
-        __instance.Labels[3] = _speed;
+        main_grid.Transfer(_speed, 5, 0);
+        __instance.Labels[5] = _speed;
 
-        // 4 Inventory
+        // 4 Inventory => 6
         Country country = ExtensionsHelper.GetPrivateField<Country>(__instance, "country");
         int stock = __instance.Entity.GetInventory(scene.Session.GetPlayer(), country, scene);
         int _add = __instance.Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(__instance.Entity);
@@ -105,38 +129,41 @@ public static class ExplorerVehicleEntity_Patches
         Label _stock = LabelPresets.GetDefault(StrConversions.OutOf(stock, _add), scene.Engine);
         _stock.horizontal_alignment = HorizontalAlignment.Center;
         _stock.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_stock, 4, 0);
-        __instance.Labels[4] = _stock;
+        main_grid.Transfer(_stock, 6, 0);
+        __instance.Labels[6] = _stock;
 
-        // 5 Price
+        // 5 Price => 7
         long price = ExtensionsHelper.GetPrivateField<long>(__instance, "price");
         Label _price = LabelPresets.GetDefault(StrConversions.GetBalance(price, scene.currency), scene.Engine);
         _price.horizontal_alignment = HorizontalAlignment.Right;
         _price.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_price, 5, 0);
-        __instance.Labels[5] = _price;
+        main_grid.Transfer(_price, 7, 0);
+        __instance.Labels[7] = _price;
 
-        // Helper
-        void InsertLabel(int at, Label label, HorizontalAlignment align = HorizontalAlignment.Center)
+        // 8 Localization.GetVehicle("estimated_profit")
+        //_tooltip.AddStatsLine("<!cl:estimated_profit:" + Localization.GetVehicle("estimated_profit") + ">", StrConversions.GetBalance(entity.GetEstimatedProfit() / 100000 * 100000, _scene.currency));
+        Label _profit = LabelPresets.GetDefault(StrConversions.GetBalance(__instance.Entity.GetEstimatedProfit() / 100000 * 100000, scene.currency), scene.Engine);
+        InsertLabel(8, _profit, HorizontalAlignment.Right);
+
+        // 9 Throughput
+        float defDistance = 1000f;
+        float numTrips = __instance.Entity.Speed * 24 / defDistance;
+        float throughput = numTrips * (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
+        Label _through = LabelPresets.GetDefault(StrConversions.CleanNumber((int)throughput), scene.Engine);
+        InsertLabel(9, _through);
+
+        // 10 Range
+        Label _range = LabelPresets.GetDefault("", scene.Engine);
+        if (__instance.Entity is PlaneEntity _plane)
         {
-            label.horizontal_alignment = align;
-            label.Margin_local = new FloatSpace(MainData.Margin_content);
-            main_grid.Transfer(label, at, 0);
-            __instance.Labels[at] = label;
+            _range = LabelPresets.GetDefault(StrConversions.GetDistance(_plane.Range), scene.Engine);
+            // TODO: make red if too far; range is not availble here
+            //if (range > _plane.Range)
+            //{
+                //Labels[0].Color = (Labels[1].Color = (Labels[2].Color = (Labels[3].Color = LabelPresets.Color_negative)));
+            //}
         }
-
-        // 6 Localization.GetVehicle("estimated_profit")
-        InsertLabel(6, LabelPresets.GetDefault("999999", scene.Engine));
-
-        // 7 Localization.GetGeneral("efficiency")
-        InsertLabel(7, LabelPresets.GetDefault("999", scene.Engine));
-
-        // 8 Localization.GetGeneral("passengers")
-        InsertLabel(8, LabelPresets.GetDefault("99", scene.Engine));
-
-        // 9 Localization.GetGeneral("range")
-        InsertLabel(9, LabelPresets.GetDefault("9999", scene.Engine));
-
+        InsertLabel(10, _range);
 
         // store into private fields
         ExtensionsHelper.SetPrivateField(__instance, "main_grid", main_grid);
