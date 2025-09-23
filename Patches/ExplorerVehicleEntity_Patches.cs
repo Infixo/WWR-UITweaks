@@ -10,6 +10,7 @@ using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
 using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
 
@@ -153,7 +154,7 @@ public static class ExplorerVehicleEntity_Patches
         InsertLabel(9, _through);
 
         // 10 Range
-        Label _range = LabelPresets.GetDefault("", scene.Engine);
+        Label _range = LabelPresets.GetDefault("∞", scene.Engine);
         if (__instance.Entity is PlaneEntity _plane)
         {
             _range = LabelPresets.GetDefault(StrConversions.GetDistance(_plane.Range), scene.Engine);
@@ -215,6 +216,37 @@ public static class ExplorerVehicleEntity_Patches
             __instance.Labels[9] = LabelPresets.GetBold("9999", scene.Engine);
         }
     */
+
+    [HarmonyPatch("Update"), HarmonyPrefix]
+    public static bool Update(ExplorerVehicleEntity __instance, GameScene scene, Company company)
+    {
+        // access private fields
+        Country country = ExtensionsHelper.GetPrivateField<Country>(__instance, "country");
+        int stock = __instance.Entity.GetInventory(scene.Session.GetPlayer(), country, scene);
+
+        __instance.Labels[6].Color = ((stock == 0) ? LabelPresets.Color_negative : LabelPresets.Color_main); // inventory 4 => 6
+        __instance.Labels[7].Color = ((ExtensionsHelper.GetPrivateField<long>(__instance, "price") > company.Wealth) ? LabelPresets.Color_negative : LabelPresets.Color_positive); // price 5 => 7
+        if (scene.Settings.Game_mode == GameMode.Discover)
+        {
+            __instance.Labels[4].Text = "∞";
+            return false; // skip original
+        }
+        int _add = __instance.Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(__instance.Entity);
+        if (country == __instance.Entity.Company.Entity.Country.Item)
+        {
+            CountryBuff _buff = country.Buff;
+            if (_buff != null && _buff.Buff == CountryBuff.BuffType.Local_stock)
+            {
+                _add = (int)((decimal)_add * (1m + _buff.Percent));
+            }
+        }
+        __instance.Labels[6].Text = StrConversions.OutOf(stock, _add); // inventory 4 => 6
+        
+        ExtensionsHelper.SetPrivateField(__instance, "stock", stock); // store into the private field
+        return false; // skip the original
+    }
+
+
     /*
     [HarmonyPatch("Smaller"), HarmonyPrefix]
     public static bool ExplorerVehicleEntity_Smaller_Prefix(ExplorerVehicleEntity __instance, ref bool __result, IExplorerItem item, int sort_id)

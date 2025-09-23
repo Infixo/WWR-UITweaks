@@ -26,16 +26,14 @@ public static class CreateNewRouteAction_Patches
                 {
                     Localization.GetGeneral("name"), // 0
                     Localization.GetCompany("company"), // 1
-                    Localization.GetGeneral("capacity"), // 2
+                    "<!cicon_passenger>", //Localization.GetGeneral("capacity"), // 2
                     "Min<!cicon_passenger>", // 3
                     "Min%", // 4
                     Localization.GetStats("speed"), //5
-                    Localization.GetGeneral("inventory"), //6
+                    "<!cicon_storage>", // Localization.GetGeneral("inventory"), //6
                     Localization.GetGeneral("price"), //7
-                    // MODDED
                     "Profit", // 8 Localization.GetVehicle("estimated_profit")
-                    //Localization.GetGeneral("efficiency"),
-                    Localization.GetGeneral("passengers"), // 9 throughput
+                    "<!cicon_passenger><!cicon_passenger>", // 9 throughput
                     Localization.GetGeneral("range"), // 10
                 },
                 on_select,
