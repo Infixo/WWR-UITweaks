@@ -1,11 +1,10 @@
-﻿using System;
-using System.Reflection;
-using System.Linq;
+﻿using System.Reflection;
 
 namespace UITweaks;
+
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-#pragma warning disable CS8602 
-#pragma warning disable CS8603 
+#pragma warning disable CS8602
+#pragma warning disable CS8603
 
 public static class ExtensionsHelper
 {
@@ -50,6 +49,15 @@ public static class ExtensionsHelper
         Type type = obj.GetType();
         MethodInfo method = type.GetMethod(name, flags);
         return (T)method.Invoke(obj, param);
+    }
+
+    // 2025-09-23 Infixo: Calling a methid that returns void, cannot be done via <T>
+    public static void CallPrivateMethodVoid(this object obj, string name, params object[] param)
+    {
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        Type type = obj.GetType();
+        MethodInfo method = type.GetMethod(name, flags);
+        method.Invoke(obj, param);
     }
 
     // 2025-09-22 Infixo: Accessing a property that is public but its Setter is private
