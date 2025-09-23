@@ -1,14 +1,13 @@
-﻿using HarmonyLib;
+﻿using System.Runtime.CompilerServices;
+using HarmonyLib;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
-using STM.UI.Explorer;
 using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System.Runtime.CompilerServices;
 
 namespace UITweaks.Patches;
 
@@ -36,7 +35,7 @@ public static class UpgradeUI_Patches
             "<!cicon_up>",
             scene.Engine).Control;
         buttonUp.horizontal_alignment = HorizontalAlignment.Stretch;
-        //ExtensionsHelper.GetPrivateField<TooltipPreset>(__instance, "" +
+        buttonUp.OnButtonPress += new Action(() => __instance.UpgradeUI_VehicleNext_Ext());
         tooltip.AddContent(buttonUp);
 
         // dropdown list
@@ -48,16 +47,58 @@ public static class UpgradeUI_Patches
             "<!cicon_down>",
             scene.Engine).Control;
         buttonDown.horizontal_alignment = HorizontalAlignment.Stretch;
-        //ExtensionsHelper.GetPrivateField<TooltipPreset>(__instance, "
+        buttonDown.OnButtonPress += new Action(() => __instance.UpgradeUI_VehiclePrev_Ext());
         tooltip.AddContent(buttonDown);
 
         ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetIcons", []);
         ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetStats", []);
         ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetControls", []);
         ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetPrice", []);
-        //ExtensionsHelper.GetPrivateField<TooltipPreset>(__instance, "tooltip").Main_control.OnUpdate += new Action(() => UpgradeUI_Update_Reverse(__instance));
         tooltip.Main_control.OnUpdate += new Action(() => UpgradeUI_Update_Reverse(__instance));
-        return false;
+
+        return false; // skip the original
+    }
+
+
+    // Extension method to find out the next in chain vehicle model
+    public static void UpgradeUI_VehicleNext_Ext(this UpgradeUI ui)
+    {
+        //Log.Write($"button clicked");
+        VehicleBaseUser vehicle = ExtensionsHelper.GetPrivateField<VehicleBaseUser>(ui, "vehicle");
+        //Log.Write($"vehicle is {vehicle.Entity_base.Translated_name} from {vehicle.Entity_base.Company.Entity.Translated_name}");
+
+        VehicleBaseEntity[] filtered = ExtensionsHelper.GetPrivateField<GrowArray<VehicleBaseEntity>>(ui, "options").ToArray()
+                           .Where(option => (option.Company.Entity.ID == vehicle.Entity_base.Company.Entity.ID) && (option.Price > vehicle.Entity_base.Price))
+                           .OrderBy(option => option.Price).ToArray();
+
+        //foreach (VehicleBaseEntity item in filtered)
+        //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
+
+        if (filtered.Length > 0)
+            ExtensionsHelper.CallPrivateMethodVoid(ui, "SelectOption", [filtered[0]]);
+        else
+            MainData.Sound_error.Play();
+    }
+
+
+    // Extension method to find out the prev in chain vehicle model
+    public static void UpgradeUI_VehiclePrev_Ext(this UpgradeUI ui)
+    {
+        //Log.Write($"button clicked");
+        VehicleBaseUser vehicle = ExtensionsHelper.GetPrivateField<VehicleBaseUser>(ui, "vehicle");
+        //Log.Write($"vehicle is {vehicle.Entity_base.Translated_name} from {vehicle.Entity_base.Company.Entity.Translated_name}");
+
+        VehicleBaseEntity[] filtered = ExtensionsHelper.GetPrivateField<GrowArray<VehicleBaseEntity>>(ui, "options").ToArray()
+                           .Where(option => (option.Company.Entity.ID == vehicle.Entity_base.Company.Entity.ID) && (option.Price < vehicle.Entity_base.Price))
+                           .OrderByDescending(option => option.Price).ToArray();
+
+        //foreach (VehicleBaseEntity item in filtered)
+        //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
+
+        if (filtered.Length > 0)
+            ExtensionsHelper.CallPrivateMethodVoid(ui, "SelectOption", [filtered[0]]);
+        else
+            MainData.Sound_error.Play();
     }
 
 
