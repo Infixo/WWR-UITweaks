@@ -9,10 +9,9 @@ using STM.UI.Explorer;
 using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Text;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace UITweaks.Patches;
 
@@ -93,7 +92,8 @@ public static class ExplorerVehicleEntity_Patches
 
         // 2 Capacity
         //string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
-        Label _capacity = LabelPresets.GetDefault(StrConversions.CleanNumber(ExtensionsHelper.GetPrivateField<int>(__instance, "capacity")), scene.Engine);
+        int capacity = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity"); // we need it 2x
+        Label _capacity = LabelPresets.GetDefault(StrConversions.CleanNumber(capacity), scene.Engine);
         //_capacity.horizontal_alignment = HorizontalAlignment.Center;
         //_capacity.Margin_local = new FloatSpace(MainData.Margin_content);
         //main_grid.Transfer(_capacity, 2, 0);
@@ -105,7 +105,7 @@ public static class ExplorerVehicleEntity_Patches
         InsertLabel(3, _minPass);
 
         // 4 min%
-        Label _minPerc = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.Entity.Real_min_passengers / (float)__instance.Entity.Capacity), scene.Engine);
+        Label _minPerc = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.Entity.Real_min_passengers / (float)capacity), scene.Engine);
         InsertLabel(4, _minPerc);
 
         // 3 Speed => 5
@@ -228,7 +228,7 @@ public static class ExplorerVehicleEntity_Patches
         __instance.Labels[7].Color = ((ExtensionsHelper.GetPrivateField<long>(__instance, "price") > company.Wealth) ? LabelPresets.Color_negative : LabelPresets.Color_positive); // price 5 => 7
         if (scene.Settings.Game_mode == GameMode.Discover)
         {
-            __instance.Labels[4].Text = "∞";
+            __instance.Labels[6].Text = "∞"; // 4 => 6
             return false; // skip original
         }
         int _add = __instance.Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(__instance.Entity);
@@ -247,70 +247,70 @@ public static class ExplorerVehicleEntity_Patches
     }
 
 
-    /*
     [HarmonyPatch("Smaller"), HarmonyPrefix]
-    public static bool ExplorerVehicleEntity_Smaller_Prefix(ExplorerVehicleEntity __instance, ref bool __result, IExplorerItem item, int sort_id)
-    {
-        Log.Write($"{__instance.Labels[0].Text} vs. {item.Labels[0].Text}");
-        __result = Smaller_Modded(__instance, item, sort_id);
-        return false; // skip original
-    }
-    */
-
-    // Worldwide Rush, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
-    // STM.UI.Explorer.ExplorerVehicleEntity
-    public static bool Smaller_Modded(ExplorerVehicleEntity __instance, IExplorerItem item, int sort_id)
+    // need to overrride entire method because there are new columns inserted in the middle
+    public static bool ExplorerVehicleEntity_Smaller_Prefix(ExplorerVehicleEntity __instance, IExplorerItem item, int sort_id, ref bool __result)
     {
         ExplorerVehicleEntity _item = (ExplorerVehicleEntity)item;
+
         if (__instance.Valid != _item.Valid)
         {
-            return __instance.Valid.CompareTo(_item.Valid) > 0;
+            __result = __instance.Valid.CompareTo(_item.Valid) > 0;
+            return false;
         }
-        //if (sort_id == 0)
-        //{
-            return __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text) < 0;
-        //}
-        /* TEMP DISABLE 
-        if (sort_id - __instance.Labels.Length == 0)
+
+        int sortColumn = sort_id % __instance.Labels.Length;
+        //bool normalOrder = sort_id < __instance.Labels.Length; // we will use xor later to flip the result if needed
+        // looks like the sort function is bugged and tries to compare the instance with itself or with a copy that has the same data
+        // it causes infinite loop and xor cannot be used because !<0 is >=0 and >0 is needed to not go into the loop
+        int result = 0; // temporary comparison, for normal order result<0, for reversed order resut>0
+
+        // fallback for sorting - always by price, then by names if prices are the same
+        int BackupCompare()
         {
-            return __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text) > 0;
-        }
-        if (sort_id == 1)
-        {
-            int _result7 = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
-            if (_result7 == 0)
+            long priceThis = ExtensionsHelper.GetPrivateField<long>(__instance, "price");
+            long priceItem = ExtensionsHelper.GetPrivateField<long>(_item, "price");
+            int result = priceThis.CompareTo(priceItem);
+            if (result == 0)
             {
-                return BackupCompare(_item);
+                return __instance.Labels[0].Text.CompareTo(item.Labels[0].Text);
             }
-            return _result7 < 0;
+            return result;
         }
-        if (sort_id - Labels.Length == 1)
+
+        // 0 Name
+        if (sortColumn == 0)
         {
-            int _result10 = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
-            if (_result10 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result10 > 0;
+            result = __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text);
         }
-        if (sort_id == 2)
+       
+        // 1 Company
+        if (sortColumn == 1)
         {
-            int _result9 = capacity.CompareTo(_item.capacity);
-            if (_result9 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result9 < 0;
+            result = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
         }
-        if (sort_id - Labels.Length == 2)
+
+        // 2 Capacity
+        if (sortColumn == 2)
         {
-            int _result8 = capacity.CompareTo(_item.capacity);
-            if (_result8 == 0)
-            {
-                return BackupCompare(_item);
-            }
-            return _result8 > 0;
+            result = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity").CompareTo(ExtensionsHelper.GetPrivateField<int>(_item, "capacity"));
         }
+
+        // 3 min passengers
+        if (sortColumn == 3)
+        {
+            result = __instance.Entity.Real_min_passengers.CompareTo(_item.Entity.Real_min_passengers);
+        }
+
+        // 4 min%
+        if (sortColumn == 4)
+        {
+            float minThis = (float)__instance.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
+            float minItem = (float)_item.Entity.Real_min_passengers / (float)ExtensionsHelper.GetPrivateField<int>(_item, "capacity");
+            result = minThis.CompareTo(minItem);
+        }
+
+        /*
         if (sort_id == 3)
         {
             int _result6 = Entity.Speed.CompareTo(_item.Entity.Speed);
@@ -320,7 +320,7 @@ public static class ExplorerVehicleEntity_Patches
             }
             return _result6 < 0;
         }
-        if (sort_id - __instance.Labels.Length == 3)
+        if (sort_id - Labels.Length == 3)
         {
             int _result5 = Entity.Speed.CompareTo(_item.Entity.Speed);
             if (_result5 == 0)
@@ -338,7 +338,7 @@ public static class ExplorerVehicleEntity_Patches
             }
             return _result4 < 0;
         }
-        if (sort_id - __instance.Labels.Length == 4)
+        if (sort_id - Labels.Length == 4)
         {
             int _result3 = stock.CompareTo(_item.stock);
             if (_result3 == 0)
@@ -356,7 +356,7 @@ public static class ExplorerVehicleEntity_Patches
             }
             return _result2 < 0;
         }
-        if (sort_id - __instance.Labels.Length == 5)
+        if (sort_id - Labels.Length == 5)
         {
             int _result = price.CompareTo(_item.price);
             if (_result == 0)
@@ -364,27 +364,14 @@ public static class ExplorerVehicleEntity_Patches
                 return BackupCompare(_item);
             }
             return _result > 0;
-        }
-        return false;
-        */
+        }*/
+
+        if (result == 0)
+            result = BackupCompare();
+
+        // Normal order: sortid < length, Reverse order: sortid >= length
+        __result = (sort_id < __instance.Labels.Length) ? result < 0 : result > 0;
+
+        return false; // skip the original
     }
-
-
 }
-
-/*
-[HarmonyPatch(typeof(CreateNewRouteAction))]
-public static class CreateNewRouteAction_Patches
-{
-    [HarmonyPatch("GenerateVehiclesSelection"),
-        [typeof(Action<ExplorerVehicleEntity>), typeof(Func<ExplorerVehicleEntity, bool>), typeof(NewRouteSettings), typeof(IControl) parent, GameScene scene, bool above, string history, byte type = byte.MaxValue, long price_adjust = 0L)
-        [HarmonyPrefix]
-    public static bool CreateNewRouteAction_GenerateVehiclesSelection_Prefix(CreateNewRouteAction __instance, Action<ExplorerVehicleEntity> on_select, Func<ExplorerVehicleEntity, bool> is_selected, NewRouteSettings route, IControl parent, GameScene scene, bool above, string history, byte type = byte.MaxValue, long price_adjust = 0L)
-    {
-        Log.Write($" route={route.Name} cities={route.Cities.Count} price={price_adjust} typ={type}");
-        //Log.WriteCallingStack(10);
-        return true; // continue
-    }
-
-}
-*/
