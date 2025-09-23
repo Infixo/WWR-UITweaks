@@ -1,6 +1,5 @@
 ﻿using HarmonyLib;
 using Microsoft.Xna.Framework;
-using ShoppingFix;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -9,12 +8,7 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System;
-using System.Diagnostics;
-using System.Net.Sockets;
-using System.Reflection;
-using System.Reflection.Emit;
-//using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 
 namespace UITweaks.Patches;
 
@@ -40,48 +34,67 @@ public static class ExplorerVehicleEntity_Patches
     }
 
 
-    private void GetMainControl(GameScene scene, Company company, CityUser city)
+    [HarmonyPatch("GetMainControl"), HarmonyPrefix]
+    public static bool ExplorerVehicleEntity_GetMainControl_Prefix(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
     {
-        Labels = new Label[6];
+        // define more labels
+        Label[] tmpLabels = new Label[10];
+        ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
+
+        // control - button
         int _height = 32;
-        main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
+        Button main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
         main_button.Opacity = 0f;
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            GetTooltip(scene);
+            ExplorerVehicleEntity_GetTooltip_Reverse(__instance, scene);
         };
-        alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
+
+        Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
         alt.Opacity = 0f;
         _collection.Transfer(alt);
-        main_grid = new Grid(ContentRectangle.Stretched, Labels.Length, 1, SizeType.Weight);
+
+        // control - grid
+        Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
         _collection.Transfer(main_grid);
-        Label _name = LabelPresets.GetDefault(GetName(), scene.Engine);
+
+        // 0 Name
+        Label _name = LabelPresets.GetDefault(ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetName", []), scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_name, 0, 0);
-        Labels[0] = _name;
-        if (Locked)
+        __instance.Labels[0] = _name;
+        if (__instance.Locked)
         {
-            Labels[0].Color = LabelPresets.Color_negative;
+            __instance.Labels[0].Color = LabelPresets.Color_negative;
         }
-        Label _company = LabelPresets.GetDefault(Entity.Company.Entity.Translated_name, scene.Engine);
+
+        // 1 Company
+        Label _company = LabelPresets.GetDefault(__instance.Entity.Company.Entity.Translated_name, scene.Engine);
         _company.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_company, 1, 0);
-        Labels[1] = _company;
-        string _scapacity = ((!(Entity is TrainEntity _train)) ? StrConversions.CleanNumber(Entity.Capacity) : StrConversions.OutOf(Entity.Capacity, _train.Max_capacity));
+        __instance.Labels[1] = _company;
+
+        // 2 Capacity
+        string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
         Label _capacity = LabelPresets.GetDefault(_scapacity, scene.Engine);
         _capacity.horizontal_alignment = HorizontalAlignment.Center;
         _capacity.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_capacity, 2, 0);
-        Labels[2] = _capacity;
-        Label _speed = LabelPresets.GetDefault(StrConversions.GetSpeed(Entity.Speed), scene.Engine);
+        __instance.Labels[2] = _capacity;
+
+        // 3 Speed
+        Label _speed = LabelPresets.GetDefault(StrConversions.GetSpeed(__instance.Entity.Speed), scene.Engine);
         _speed.horizontal_alignment = HorizontalAlignment.Center;
         _speed.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_speed, 3, 0);
-        Labels[3] = _speed;
-        stock = Entity.GetInventory(scene.Session.GetPlayer(), country, scene);
-        int _add = Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(Entity);
-        if (country == Entity.Company.Entity.Country.Item)
+        __instance.Labels[3] = _speed;
+
+        // 4 Inventory
+        Country country = ExtensionsHelper.GetPrivateField<Country>(__instance, "country");
+        int stock = __instance.Entity.GetInventory(scene.Session.GetPlayer(), country, scene);
+        int _add = __instance.Entity.Inventory + scene.Session.GetPlayer().Loyalty.GetAdditions(__instance.Entity);
+        if (country == __instance.Entity.Company.Entity.Country.Item)
         {
             CountryBuff _buff = country.Buff;
             if (_buff != null && _buff.Buff == CountryBuff.BuffType.Local_stock)
@@ -93,49 +106,88 @@ public static class ExplorerVehicleEntity_Patches
         _stock.horizontal_alignment = HorizontalAlignment.Center;
         _stock.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_stock, 4, 0);
-        Labels[4] = _stock;
+        __instance.Labels[4] = _stock;
+
+        // 5 Price
+        long price = ExtensionsHelper.GetPrivateField<long>(__instance, "price");
         Label _price = LabelPresets.GetDefault(StrConversions.GetBalance(price, scene.currency), scene.Engine);
         _price.horizontal_alignment = HorizontalAlignment.Right;
         _price.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_price, 5, 0);
-        Labels[5] = _price;
-    }
+        __instance.Labels[5] = _price;
 
-
-/* Prefix must be used because main_grid is created inside the method
-
-[HarmonyPatch("GetMainControl"), HarmonyPostfix]
-    public static void GetMainControl(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
-    {
-        //Log.Write($"ORG {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
-        // Create a new, larger array
-        Label[] newLabels = new Label[10];
-        // Copy elements from the old array to the new one
-        Array.Copy(__instance.Labels, newLabels, __instance.Labels.Length);
-        //ExtensionsHelper.SetPrivateProperty(__instance, "Labels", newLabels); // __instance.Labels = newLabels;
-        // damn... cannot use the above because only setter is private, getter is public
-        // The property itself is public, so we need BindingFlags.Public.
-        // However, the setter is non-public, so we'll access it separately.
-        BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
-        Type type = __instance.GetType();
-        PropertyInfo propertyInfo = type.GetProperty("Labels", flags);
-
-        // Now, get the private setter method. We need to look for a non-public method.
-        var setter = propertyInfo.GetSetMethod(true); // The 'true' argument is crucial.
-
-        if (setter != null)
+        // Helper
+        void InsertLabel(int at, Label label, HorizontalAlignment align = HorizontalAlignment.Center)
         {
-            setter.Invoke(__instance, new object[] { newLabels });
+            label.horizontal_alignment = align;
+            label.Margin_local = new FloatSpace(MainData.Margin_content);
+            main_grid.Transfer(label, at, 0);
+            __instance.Labels[at] = label;
         }
-        //Log.Write($"EXT {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
 
-        // fill out new columns
-        __instance.Labels[6] = LabelPresets.GetDefault("999999$", scene.Engine);
-        __instance.Labels[7] = LabelPresets.GetDefault("99%", scene.Engine, Color.Lavender);
-        __instance.Labels[8] = LabelPresets.GetBold("999", scene.Engine, Color.Red);
-        __instance.Labels[9] = LabelPresets.GetBold("9999", scene.Engine);
+        // 6 Localization.GetVehicle("estimated_profit")
+        InsertLabel(6, LabelPresets.GetDefault("999999", scene.Engine));
+
+        // 7 Localization.GetGeneral("efficiency")
+        InsertLabel(7, LabelPresets.GetDefault("999", scene.Engine));
+
+        // 8 Localization.GetGeneral("passengers")
+        InsertLabel(8, LabelPresets.GetDefault("99", scene.Engine));
+
+        // 9 Localization.GetGeneral("range")
+        InsertLabel(9, LabelPresets.GetDefault("9999", scene.Engine));
+
+
+        // store into private fields
+        ExtensionsHelper.SetPrivateField(__instance, "main_grid", main_grid);
+        ExtensionsHelper.SetPrivateField(__instance, "main_button", main_button);
+        ExtensionsHelper.SetPrivateField(__instance, "alt", alt);
+        ExtensionsHelper.SetPrivateField(__instance, "stock", stock);
+
+        return false; // skip the original
     }
-*/
+
+
+    [HarmonyPatch("GetTooltip"), HarmonyReversePatch]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static void ExplorerVehicleEntity_GetTooltip_Reverse(ExplorerVehicleEntity __instance, GameScene scene) =>
+        throw new NotImplementedException("ERROR. ExplorerCity_GetTooltip_Reverse");
+
+
+    /* Prefix must be used because main_grid is created inside the method
+
+    [HarmonyPatch("GetMainControl"), HarmonyPostfix]
+        public static void GetMainControl(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
+        {
+            //Log.Write($"ORG {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
+            // Create a new, larger array
+            Label[] newLabels = new Label[10];
+            // Copy elements from the old array to the new one
+            Array.Copy(__instance.Labels, newLabels, __instance.Labels.Length);
+            //ExtensionsHelper.SetPrivateProperty(__instance, "Labels", newLabels); // __instance.Labels = newLabels;
+            // damn... cannot use the above because only setter is private, getter is public
+            // The property itself is public, so we need BindingFlags.Public.
+            // However, the setter is non-public, so we'll access it separately.
+            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
+            Type type = __instance.GetType();
+            PropertyInfo propertyInfo = type.GetProperty("Labels", flags);
+
+            // Now, get the private setter method. We need to look for a non-public method.
+            var setter = propertyInfo.GetSetMethod(true); // The 'true' argument is crucial.
+
+            if (setter != null)
+            {
+                setter.Invoke(__instance, new object[] { newLabels });
+            }
+            //Log.Write($"EXT {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
+
+            // fill out new columns
+            __instance.Labels[6] = LabelPresets.GetDefault("999999$", scene.Engine);
+            __instance.Labels[7] = LabelPresets.GetDefault("99%", scene.Engine, Color.Lavender);
+            __instance.Labels[8] = LabelPresets.GetBold("999", scene.Engine, Color.Red);
+            __instance.Labels[9] = LabelPresets.GetBold("9999", scene.Engine);
+        }
+    */
     /*
     [HarmonyPatch("Smaller"), HarmonyPrefix]
     public static bool ExplorerVehicleEntity_Smaller_Prefix(ExplorerVehicleEntity __instance, ref bool __result, IExplorerItem item, int sort_id)
