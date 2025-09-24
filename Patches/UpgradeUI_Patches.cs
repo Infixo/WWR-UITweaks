@@ -146,43 +146,4 @@ public static class UpgradeUI_Patches
     public static void UpgradeUI_OnVehicleSelect_Reverse(UpgradeUI __instance, SimpleDropdownItem item) =>
         // its a stub so it has no initial content
         throw new NotImplementedException("ERROR. UpgradeUI_OnVehicleSelect_Reverse");
-
-    /*
-    [HarmonyPatch("GetControls"), HarmonyPrefix]
-    private static bool UpgradeUI_GetControls_Prefix(UpgradeUI __instance)
-    {
-        GameScene scene = ExtensionsHelper.GetPrivateField<GameScene>(__instance, "scene");
-        TooltipPreset tooltip = ExtensionsHelper.GetPrivateField<TooltipPreset>(__instance, "tooltip");
-
-        Button _button = ButtonPresets.TextGreen(
-            new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f),
-            Localization.GetGeneral("replace"),
-            scene.Engine).Control;
-        _button.horizontal_alignment = HorizontalAlignment.Center; // Strech
-        tooltip.AddContent(_button);
-        _button.OnButtonPress += new Action(() => UpgradeUI_Upgrade_Reverse(__instance));
-
-        Button buttonUp = ButtonPresets.TextGreen(
-            new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f),
-            "<!cicon_up>",
-            scene.Engine).Control;
-        buttonUp.horizontal_alignment = HorizontalAlignment.Center; // Strech
-        tooltip.AddContent(buttonUp);
-
-        Button buttonDown = ButtonPresets.TextGreen(
-            new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f),
-            "<!cicon_down>",
-            scene.Engine).Control;
-        buttonDown.horizontal_alignment = HorizontalAlignment.Center; // Strech
-        tooltip.AddContent(buttonDown);
-
-        return false; // skip original
-    }
-
-    [HarmonyPatch("Upgrade"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void UpgradeUI_Upgrade_Reverse(UpgradeUI __instance) =>
-        // its a stub so it has no initial content
-        throw new NotImplementedException("ERROR. UpgradeUI_Upgrade_Reverse");
-    */
 }

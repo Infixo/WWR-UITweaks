@@ -11,7 +11,6 @@ using STMG.UI.Control;
 using STVisual.Utility;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace UITweaks.Patches;
 
@@ -19,27 +18,6 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerVehicleEntity))]
 public static class ExplorerVehicleEntity_Patches
 {
-    /* not needed
-     * 
-    [HarmonyPatch(
-        typeof(ExplorerVehicleEntity),
-        MethodType.Constructor,
-        [typeof(VehicleBaseEntity), typeof(GameScene), typeof(Company), typeof(CityUser), typeof(long), typeof(int)])]
-    [HarmonyPostfix]
-    public static void ExplorerVehicleEntity_Postfix(ExplorerVehicleEntity __instance, VehicleBaseEntity entity, GameScene scene, Company company, CityUser city, long price_adjust, int range = 0)
-    {
-        Log.Write($"{entity.Translated_name} comp={company.ID} inf={price_adjust} ran={range} {__instance.Labels[8].Text} {__instance.Labels[9].Text}");
-        //Log.WriteCallingStack(10);
-        //return true; // continue
-        // MODDED
-        //__instance.Labels[6].Text = "profit";
-        //__instance.Labels[7].Text = "effic";
-        //__instance.Labels[8].Text = "through";
-        //__instance.Labels[9].Text = "range";
-    }
-    */
-
-
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerVehicleEntity_GetMainControl_Prefix(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
     {
@@ -181,41 +159,6 @@ public static class ExplorerVehicleEntity_Patches
     public static void ExplorerVehicleEntity_GetTooltip_Reverse(ExplorerVehicleEntity __instance, GameScene scene) =>
         throw new NotImplementedException("ERROR. ExplorerCity_GetTooltip_Reverse");
 
-
-    /* Prefix must be used because main_grid is created inside the method
-
-    [HarmonyPatch("GetMainControl"), HarmonyPostfix]
-        public static void GetMainControl(ExplorerVehicleEntity __instance, GameScene scene, Company company, CityUser city)
-        {
-            //Log.Write($"ORG {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
-            // Create a new, larger array
-            Label[] newLabels = new Label[10];
-            // Copy elements from the old array to the new one
-            Array.Copy(__instance.Labels, newLabels, __instance.Labels.Length);
-            //ExtensionsHelper.SetPrivateProperty(__instance, "Labels", newLabels); // __instance.Labels = newLabels;
-            // damn... cannot use the above because only setter is private, getter is public
-            // The property itself is public, so we need BindingFlags.Public.
-            // However, the setter is non-public, so we'll access it separately.
-            BindingFlags flags = BindingFlags.Instance | BindingFlags.Public;
-            Type type = __instance.GetType();
-            PropertyInfo propertyInfo = type.GetProperty("Labels", flags);
-
-            // Now, get the private setter method. We need to look for a non-public method.
-            var setter = propertyInfo.GetSetMethod(true); // The 'true' argument is crucial.
-
-            if (setter != null)
-            {
-                setter.Invoke(__instance, new object[] { newLabels });
-            }
-            //Log.Write($"EXT {__instance.Labels.Length} {__instance.Labels[0]} {__instance.Labels[1]}");
-
-            // fill out new columns
-            __instance.Labels[6] = LabelPresets.GetDefault("999999$", scene.Engine);
-            __instance.Labels[7] = LabelPresets.GetDefault("99%", scene.Engine, Color.Lavender);
-            __instance.Labels[8] = LabelPresets.GetBold("999", scene.Engine, Color.Red);
-            __instance.Labels[9] = LabelPresets.GetBold("9999", scene.Engine);
-        }
-    */
 
     [HarmonyPatch("Update"), HarmonyPrefix]
     public static bool Update(ExplorerVehicleEntity __instance, GameScene scene, Company company)

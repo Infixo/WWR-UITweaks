@@ -4,11 +4,11 @@ using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
+using STM.UI.Explorer;
 using STM.UI.Floating;
 using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace UITweaks.Patches;
 
@@ -64,5 +64,56 @@ public static class CountryUI_Patches
         }
 
         return items.OrderBy(item => item.Tax).First(); // find the lowest tax
+    }
+
+
+    [HarmonyPatch("AddCity"), HarmonyPrefix]
+    public static bool CountryUI_AddCity_Prefix(CountryUI __instance, CityUser city, ref int y)
+    {
+        if (city.Destinations == null || city.Level <= 0)
+        {
+            return false;
+        }
+
+        ControlCollection _content;
+        Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button, 1f), __instance.Scene.Engine, out _content);
+        _button.horizontal_alignment = HorizontalAlignment.Stretch;
+        _button.Margin_local = new FloatSpace(0f, MainData.Margin_content_items, MainData.Margin_content, MainData.Margin_content_items);
+        ExtensionsHelper.GetPrivateField<ControlCollection>(__instance, "cities").Transfer(_button);
+        y += (int)_button.Size_local_total.Y;
+
+        string _text = city.GetNameWithIcon(__instance.Scene);
+        _text = (city.City.Capital ? ("<!cicon_train_b> " + _text) : ((!city.Important) ? ("<!cicon_ship_b> " + _text) : ("<!cicon_plane_b> " + _text)));
+        Label _name = LabelPresets.GetBold(_text, __instance.Scene.Engine);
+        _name.Margin_local = new FloatSpace(MainData.Margin_content);
+        _content.Transfer(_name);
+        if (!city.Important)
+        {
+            _name.Font = MainData.Font_default.Get(__instance.Scene.Engine);
+        }
+
+        Label _level = LabelPresets.GetDefault("<!cicon_star> " + StrConversions.CleanNumber(city.Level) + (city.Routes.Count>0 ? "<!cicon_locate>" : ""), __instance.Scene.Engine);
+        _level.horizontal_alignment = HorizontalAlignment.Right;
+        _level.Margin_local = new FloatSpace(MainData.Margin_content);
+        _content.Transfer(_level);
+
+        _button.OnButtonPress += (Action)delegate
+        {
+            if (__instance.Scene.tracking != city)
+            {
+                __instance.Scene.tracking = city;
+            }
+            else if (!__instance.Scene.Selection.IsSelected(city))
+            {
+                city.Select(__instance.Scene);
+            }
+        };
+
+        _button.OnMouseStillTime += (Action)delegate
+        {
+            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetCityTooltip", [_button, city]);
+        };
+
+        return false;
     }
 }
