@@ -15,11 +15,14 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(UpgradeUI))]
 public static class UpgradeUI_Patches
 {
-    [HarmonyPatch(typeof(UpgradeUI), MethodType.Constructor, [typeof(VehicleBaseUser), typeof(GameScene)]), HarmonyPrefix]
-    public static bool UpgradeUI_UpgradeUI_Prefix(UpgradeUI __instance, VehicleBaseUser vehicle, GameScene scene)
+    [HarmonyPatch(typeof(UpgradeUI), MethodType.Constructor, [typeof(VehicleBaseUser), typeof(GameScene), typeof(Action)]), HarmonyPrefix]
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+    public static bool UpgradeUI_UpgradeUI_Prefix(UpgradeUI __instance, VehicleBaseUser vehicle, GameScene scene, Action after = null)
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     {
         ExtensionsHelper.SetPrivateField(__instance, "scene", scene);
         ExtensionsHelper.SetPrivateField(__instance, "vehicle", vehicle);
+        ExtensionsHelper.SetPrivateField(__instance, "after", after);
         TooltipPreset tooltip = TooltipPreset.Get(" <!cicon_upgrade> " + Localization.GetGeneral("replace"), scene.Engine, can_lock: true);
         ExtensionsHelper.SetPrivateField(__instance, "tooltip", tooltip);
         ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetOptions", []);
@@ -134,14 +137,14 @@ public static class UpgradeUI_Patches
 
         return false; // skip original
     }
-
+    
     [HarmonyPatch("GetCurrent"), HarmonyReversePatch]
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static int UpgradeUI_GetCurrent_Reverse(UpgradeUI __instance) =>
         // its a stub so it has no initial content
         throw new NotImplementedException("ERROR. UpgradeUI_GetCurrent_Reverse");
-
-    [HarmonyPatch("OnVehicleSelect"), HarmonyReversePatch]
+    
+    [HarmonyPatch("OnVehicleSelect", [typeof(SimpleDropdownItem )]), HarmonyReversePatch]
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static void UpgradeUI_OnVehicleSelect_Reverse(UpgradeUI __instance, SimpleDropdownItem item) =>
         // its a stub so it has no initial content

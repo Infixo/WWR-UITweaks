@@ -82,6 +82,10 @@ public static class ExplorerCity_Patches
 
         // control - grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
+        main_grid.OnFirstUpdate += (Action)delegate
+        {
+            main_grid.update_children = false;
+        };
         _collection.Transfer(main_grid);
 
         // 0 name

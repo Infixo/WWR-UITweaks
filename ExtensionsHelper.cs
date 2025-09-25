@@ -60,6 +60,16 @@ public static class ExtensionsHelper
         method.Invoke(obj, param);
     }
 
+    // 2025-09-25 Infixo: Calling a private static method requires a bit different approach
+    // Usage: typeof(MyClass).CallPrivateStaticMethod<string>("MethodName", [params]);
+    // Needs testing
+    public static T CallPrivateStaticMethod<T>(this Type type, string name, params object[] param)
+    {
+        BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
+        MethodInfo method = type.GetMethod(name, flags);
+        return (T)method.Invoke(null, param); // null target for static
+    }
+
     // 2025-09-22 Infixo: Accessing a property that is public but its Setter is private
     public static void SetPublicProperty(this object obj, string name, object value)
     {

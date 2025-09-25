@@ -56,6 +56,10 @@ public static class ExplorerCountry_Patches
 
         // control - grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
+        main_grid.OnFirstUpdate += (Action)delegate
+        {
+            main_grid.update_children = false;
+        };
         _collection.Transfer(main_grid);
 
         // 0 Name
@@ -96,11 +100,14 @@ public static class ExplorerCountry_Patches
         main_grid.Transfer(_average, 3, 0);
         __instance.Labels[3] = _average;
 
-        // 3 Connected
+        // 4 Not connected
         int connected = __instance.Country.GetConnectedCities();
-        Label _connected = LabelPresets.GetDefault(StrConversions.CleanNumber(connected) + "  (" + StrConversions.Percent((float)connected / (float)cities) + ")", scene.Engine);
+        //Label _connected = LabelPresets.GetDefault(StrConversions.CleanNumber(connected) + "  (" + StrConversions.Percent((float)connected / (float)cities) + ")", scene.Engine);
+        Label _connected = LabelPresets.GetDefault(StrConversions.CleanNumber(cities - connected), scene.Engine);
         if (connected == cities)
             _connected.Color = LabelPresets.Color_positive;
+        else if (connected > 0)
+            _connected.Color = LabelPresets.Color_negative;
         _connected.Margin_local = new FloatSpace(MainData.Margin_content);
         _connected.horizontal_alignment = HorizontalAlignment.Center;
         main_grid.Transfer(_connected, 4, 0);
@@ -152,8 +159,13 @@ public static class ExplorerCountry_Patches
         // 4 Connected
         if (sort_id % __instance.Labels.Length == 4)
         {
+            /* sorts by percent of connected cities
             float connectedThis = (float)__instance.Country.GetConnectedCities() / (float)__instance.Country.GetVisibleCities();
             float connectedItem = (float)_item.Country.GetConnectedCities() / (float)_item.Country.GetVisibleCities();
+            */
+            // sorts by number of not-connected cities
+            int connectedThis = __instance.Country.GetVisibleCities() - __instance.Country.GetConnectedCities();
+            int connectedItem = _item.Country.GetVisibleCities() - _item.Country.GetConnectedCities();
             if (sort_id < __instance.Labels.Length)
                 __result = connectedThis > connectedItem;
             else

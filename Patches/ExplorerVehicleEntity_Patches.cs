@@ -41,6 +41,10 @@ public static class ExplorerVehicleEntity_Patches
 
         // control - grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
+        main_grid.OnFirstUpdate += (Action)delegate
+        {
+            main_grid.update_children = false;
+        };
         _collection.Transfer(main_grid);
 
         // Helper
