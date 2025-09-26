@@ -1,9 +1,8 @@
-﻿using System.Text;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using HarmonyLib;
-using UITweaks.Patches;
+using STM.Data;
 
 namespace UITweaks;
 
@@ -47,8 +46,11 @@ public static class ModEntry
             Log.Write("EXCEPTION");
             Log.Write(ex.ToString());
         }
+
         // do other stuff here to initialize
         //CityWorldGraphics_Patches.DebugColors();
+        DumpMainDataDefaults();
+
         return 0;
     }
 
@@ -59,8 +61,21 @@ public static class ModEntry
         //var harmony = new Harmony(harmonyId);
         //harmony.UnpatchAll(harmonyId);
     }
-}
 
+    public static void DumpMainDataDefaults()
+    {
+        Type type = MainData.Defaults.GetType();
+        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+        Log.Write($"--- Public Properties of {type.Name} ---");
+        // Iterate through the properties and print their names and values
+        foreach (PropertyInfo property in properties)
+        {
+            string name = property.Name;
+            object value = property.GetValue(MainData.Defaults);
+            Log.Write($"{name}= {value}  ({property.PropertyType.Name})");
+        }
+    }
+}
 
 
 public static class Log

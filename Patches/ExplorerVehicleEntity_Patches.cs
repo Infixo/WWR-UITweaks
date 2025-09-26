@@ -32,7 +32,8 @@ public static class ExplorerVehicleEntity_Patches
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            ExplorerVehicleEntity_GetTooltip_Reverse(__instance, scene);
+            //ExplorerVehicleEntity_GetTooltip_Reverse(__instance, scene);
+            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetTooltip", [scene]);
         };
 
         Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
@@ -129,10 +130,10 @@ public static class ExplorerVehicleEntity_Patches
         InsertLabel(8, _profit, HorizontalAlignment.Right);
 
         // 9 Throughput
-        float defDistance = 1000f;
-        float numTrips = __instance.Entity.Speed * 24 / defDistance;
-        float throughput = numTrips * (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
-        Label _through = LabelPresets.GetDefault(StrConversions.CleanNumber((int)throughput), scene.Engine);
+        //float defDistance = 1000f;
+        //float numTrips = __instance.Entity.Speed * 24 / defDistance;
+        //float throughput = numTrips * (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
+        Label _through = LabelPresets.GetDefault(StrConversions.CleanNumber((int)__instance.Entity.GetEstimatedThroughput()), scene.Engine);
         InsertLabel(9, _through);
 
         // 10 Range
@@ -162,6 +163,34 @@ public static class ExplorerVehicleEntity_Patches
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static void ExplorerVehicleEntity_GetTooltip_Reverse(ExplorerVehicleEntity __instance, GameScene scene) =>
         throw new NotImplementedException("ERROR. ExplorerCity_GetTooltip_Reverse");
+
+
+    /// <summary>
+    /// Extension to calculate theoretical monthly throughput
+    /// </summary>
+    /// <param name="__instance"></param>
+    /// <param name="scene"></param>
+    /// <param name="company"></param>
+    /// <returns></returns>
+    public static int GetEstimatedThroughput(this VehicleBaseEntity vbe, float distance = 1000f)
+    {
+        int stationTime = 0; // in seconds
+        switch (vbe.Type_name)
+        {
+            case "road_vehicle": stationTime = MainData.Defaults.Bus_station_time; break;
+            case "train": stationTime = MainData.Defaults.Train_station_time; break;
+            case "plane": stationTime = MainData.Defaults.Plane_airport_time; break;
+            case "ship": stationTime = MainData.Defaults.Ship_port_time; break;
+        }
+        //Log.Write($"{vbe.ID } {vbe.Type_name} {vbe.Translated_name} speed={vbe.Speed} cap={vbe.Capacity} ticket={vbe.Passenger_pay_per_km} cost={vbe.Cost_per_km}");
+        
+        float numTrips = 24f / ( distance / (float)vbe.Speed + (float)stationTime / 3600f);
+        float capacity = (vbe is TrainEntity entity) ? (float)entity.Max_capacity : (float)vbe.Capacity; //ExtensionsHelper.GetPrivateField<int>(vbe, "capacity");
+        int throughput = (int)(numTrips * capacity);
+
+        //Log.Write($"{vbe.ID } {vbe.Type_name} {vbe.Translated_name} speed={vbe.Speed} cap={capacity} time={stationTime} trips={numTrips} thr{throughput}");
+        return throughput;
+    }
 
 
     [HarmonyPatch("Update"), HarmonyPrefix]
@@ -254,7 +283,7 @@ public static class ExplorerVehicleEntity_Patches
                 break;
 
             case 9: // Throughput
-                result = 0; // temp
+                result = __instance.Entity.GetEstimatedThroughput().CompareTo(_item.Entity.GetEstimatedThroughput());
                 break;
 
             case 10: // Range 
