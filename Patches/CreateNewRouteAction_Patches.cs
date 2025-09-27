@@ -17,7 +17,7 @@ public static class CreateNewRouteAction_Patches
     [HarmonyPatch("GenerateVehiclesSelection", [typeof(Action < ExplorerVehicleEntity >), typeof(Func<ExplorerVehicleEntity, bool>), typeof(NewRouteSettings), typeof(IControl), typeof(GameScene), typeof(bool), typeof(string), typeof(byte), typeof(long), typeof(VehicleBaseUser[])])]
     [HarmonyPrefix]
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-    public static bool CreateNewRouteAction_GenerateVehiclesSelection_Prefix(Action<ExplorerVehicleEntity> on_select, Func<ExplorerVehicleEntity, bool> is_selected, NewRouteSettings route, IControl parent, GameScene scene, bool above, string history, byte type = byte.MaxValue, long price_adjust = 0L, VehicleBaseUser[] replace = null)
+    public static bool CreateNewRouteAction_GenerateVehiclesSelection_Prefix(CreateNewRouteAction __instance, Action<ExplorerVehicleEntity> on_select, Func<ExplorerVehicleEntity, bool> is_selected, NewRouteSettings route, IControl parent, GameScene scene, bool above, string history, byte type = byte.MaxValue, long price_adjust = 0L, VehicleBaseUser[] replace = null)
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     {
         {
@@ -58,25 +58,27 @@ public static class CreateNewRouteAction_Patches
             {
                 _explorer.city = route.Cities.TryGet(0, null);
             }
-            if (type == 0 || type == byte.MaxValue)
+            switch (type)
             {
-                _explorer.AddItems(CreateNewRouteAction_GetRoadVehicles_Reverse(route, scene, price_adjust, replace));
-                //_explorer.AddItems(ExtensionsHelper.CallPrivateMethod<GrowArray<ExplorerVehicleEntity>>(__instance, "GetRoadVehicles", [route, scene, price_adjust, replace]));
-            }
-            if (type == 1 || type == byte.MaxValue)
-            {
-                _explorer.AddItems(CreateNewRouteAction_GetTrains_Reverse(route, scene, price_adjust, replace));
-                //_explorer.AddItems(ExtensionsHelper.CallPrivateMethod<GrowArray<ExplorerVehicleEntity>>(__instance, "GetTrains", [route, scene, price_adjust, replace]));
-            }
-            if (type == 2 || type == byte.MaxValue)
-            {
-                _explorer.AddItems(CreateNewRouteAction_GetPlanes_Reverse(route, scene, price_adjust, replace));
-                //_explorer.AddItems(ExtensionsHelper.CallPrivateMethod<GrowArray<ExplorerVehicleEntity>>(__instance, "GetPlanes", [route, scene, price_adjust, replace]));
-            }
-            if (type == 3 || type == byte.MaxValue)
-            {
-                _explorer.AddItems(CreateNewRouteAction_GetShips_Reverse(route, scene, price_adjust, replace));
-                //_explorer.AddItems(ExtensionsHelper.CallPrivateMethod<GrowArray<ExplorerVehicleEntity>>(__instance, "GetShips", [route, scene, price_adjust, replace]));
+                case byte.MaxValue:
+                    _explorer.AddItems(() => typeof(CreateNewRouteAction).CallPrivateStaticMethod<GrowArray<ExplorerVehicleEntity>>("GetAllVehicles", [route, scene, price_adjust, replace]));
+                    break;
+
+                case 0:
+                    _explorer.AddItems(() => typeof(CreateNewRouteAction).CallPrivateStaticMethod<GrowArray<ExplorerVehicleEntity>>("GetRoadVehicles", [route, scene, price_adjust, replace]));
+                    break;
+
+                case 1:
+                    _explorer.AddItems(() => typeof(CreateNewRouteAction).CallPrivateStaticMethod<GrowArray<ExplorerVehicleEntity>>("GetTrains", [route, scene, price_adjust, replace]));
+                    break;
+
+                case 2:
+                    _explorer.AddItems(() => typeof(CreateNewRouteAction).CallPrivateStaticMethod<GrowArray<ExplorerVehicleEntity>>("GetPlanes", [route, scene, price_adjust, replace]));
+                    break;
+
+                case 3:
+                    _explorer.AddItems(() => typeof(CreateNewRouteAction).CallPrivateStaticMethod<GrowArray<ExplorerVehicleEntity>>("GetShips", [route, scene, price_adjust, replace]));
+                    break;
             }
             if (above)
             {

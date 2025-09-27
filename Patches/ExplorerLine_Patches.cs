@@ -71,10 +71,10 @@ public static class ExplorerLine_Patches
         {
             ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetTooltip", [scene]);
             // test
-            TooltipPreset tt = TooltipPreset.Get("Debug", scene.Engine, can_lock: true);
-            tt.AddDescription("test");
-            tt.AddDescription("TEST TEST");
-            tt.AddToControlBellow(butTemp);
+            //TooltipPreset tt = TooltipPreset.Get("Debug", scene.Engine, can_lock: true);
+            //tt.AddDescription("test");
+            //tt.AddDescription("TEST TEST");
+            //tt.AddToControlBellow(butTemp);
         };
 
         ___alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
@@ -146,7 +146,11 @@ public static class ExplorerLine_Patches
         InsertLabelAt(6, StrConversions.GetDistance(__instance.Line.GetTotalDistance()));
 
         // 7 Estimated vehicles throughput
-        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Line.EstimateThroughput()));
+        int throughput = __instance.Line.EstimateThroughput();
+        if (__instance.Line.Instructions.Cities.Length > 2)
+            InsertLabelAt(7, $"{StrConversions.CleanNumber(throughput)} .. {StrConversions.CleanNumber(throughput * (__instance.Line.Instructions.Cities.Length-1))}");
+        else
+            InsertLabelAt(7, StrConversions.CleanNumber(throughput));
 
         // 8 Estimated through needed to transport currently waiting passangers within a month
         InsertLabelAt(8, "999");
@@ -233,30 +237,53 @@ public static class ExplorerLine_Patches
         float averageCapacity = (float)sumCapacityWeighted / (float)sumSpeed;
 
         // Calculate actual throughput
-        float numTrips = 24f / ((float)distance / averageSpeed + (float)numStops * (float)stationTime / 3600f);
+        float numTrips = 24f / ((float)distance / averageSpeed + (float)(numStops-1) * (float)stationTime / 3600f);
         return line.Vehicles * (int)(averageCapacity * numTrips);
     }
 
-    /*
-    [HarmonyPatch("GetTooltip"), HarmonyPrefix]
-    public static bool ExplorerLine_GetTooltip_Prefix(ExplorerLine __instance, Button ___main_button, GameScene scene)
+    
+    [HarmonyPatch("Smaller"), HarmonyPostfix]
+    public static void ExplorerLine_Smaller_Postfix(ExplorerLine __instance, ref bool __result, IExplorerItem item, int sort_id)
     {
-        CityUI.GetLineBalance(___main_button, __instance.Line, scene);
-        return false;
-    }
-    */
-    /*
-    [HarmonyPatch(""), HarmonyPrefix]
-    public static bool Smaller(ExplorerLine __instance, ref bool __result, IExplorerItem item, int sort_id)
-    {
-        return true;
-    }
+        ExplorerLine _item = (ExplorerLine)item;
+        if (__instance.Valid != _item.Valid)
+        {
+            return;
+        }
 
+        int sortColumn = sort_id % __instance.Labels.Length;
+        int result = 0; // temporary comparison, for normal order result<0, for reversed order resut>0
+        switch (sort_id % __instance.Labels.Length) // sort column
+        {
+            case 0:
+            case 1:
+            case 2:
+            case 3:
+            case 4: // original function
+                return;
 
-    [HarmonyPatch(""), HarmonyPrefix]
-    public static bool Update(ExplorerLine __instance, GameScene scene, Company company)
-    {
-        return true;
+            case 5: // num cities
+                result = __instance.Line.Instructions.Cities.Length.CompareTo(_item.Line.Instructions.Cities.Length);
+                break;
+
+            case 6: // length
+                result = __instance.Line.GetTotalDistance().CompareTo(_item.Line.GetTotalDistance());
+                break;
+
+            case 7: // throughput
+                result = __instance.Line.EstimateThroughput().CompareTo(_item.Line.EstimateThroughput());
+                break;
+
+            case 8: // waiting
+                result = 0;
+                break;
+        }
+
+        // fallback for sorting - by ID
+        if (result == 0)
+            __instance.Line.ID.CompareTo(_item.Line.ID);
+
+        // Normal order: sortid < length, Reverse order: sortid >= length; default is descending
+        __result = (sort_id < __instance.Labels.Length) ? result > 0 : result < 0;
     }
-    */
 }
