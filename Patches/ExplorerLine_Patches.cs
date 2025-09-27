@@ -8,14 +8,6 @@ using STM.UI.Explorer;
 using STM.UI.Floating;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UITweaks.Patches;
 
@@ -30,12 +22,14 @@ public static class ExplorerLine_Patches
         [
         Localization.GetGeneral("name"), // 0
         Localization.GetVehicle("route"), // 1
-        Localization.GetInfrastructure("vehicles"), // 2
+        "<!cicon_road_vehicle><!cicon_train><!cicon_plane><!cicon_ship>", //Localization.GetInfrastructure("vehicles"), // 2
         Localization.GetGeneral("efficiency"), // 3
         Localization.GetGeneral("balance"), // 4
         // added
-        "<!cicon_fast>EstThrough", // 5
-        "<!cicon_passenger>EstNeeds", // 6
+        "<!cicon_city>", // 5 num cities
+        "<!cicon_left>  <!cicon_right>", // 6 length
+        "<!cicon_fast>", // 7
+        "<!cicon_passenger>", // 8
         ];
         return false;
     }
@@ -47,11 +41,11 @@ public static class ExplorerLine_Patches
         TooltipPreset? _tooltip = null;
         switch (id)
         {
-            case 5:
+            case 7:
                 _tooltip = TooltipPreset.Get("Throughput", ___Session.Scene.Engine);
                 _tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
                 break;
-            case 6:
+            case 8:
                 _tooltip = TooltipPreset.Get("Transport needs", ___Session.Scene.Engine);
                 _tooltip.AddDescription("Estimated throughput needed to transport within a month passengers within a given line i.e. passengers wanting to use another line are excluded.");
                 break;
@@ -64,7 +58,7 @@ public static class ExplorerLine_Patches
     public static bool GetMainControl(ExplorerLine __instance, ref Button ___main_button, ref Image ___alt, GameScene scene)
     {
         // define more labels
-        Label[] tmpLabels = new Label[7];
+        Label[] tmpLabels = new Label[9];
         ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
 
         // control - button
@@ -145,13 +139,57 @@ public static class ExplorerLine_Patches
         main_grid.Transfer(_balance, 4, 0);
         __instance.Labels[4] = _balance;
 
-        // 5 Estimated vehicles throughput
-        InsertLabelAt(5, StrConversions.CleanNumber(__instance.Line.EstimateThroughput()));
+        // 5 Num cities
+        InsertLabelAt(5, StrConversions.CleanNumber(__instance.Line.Instructions.Cities.Length) + (__instance.Line.Instructions.Cyclic ? " <!cicon_down>" : ""));
 
-        // 6 Estimated through needed to transport currently waiting passangers within a month
-        InsertLabelAt(6, "p-999");
+        // 6 Length
+        InsertLabelAt(6, StrConversions.GetDistance(__instance.Line.GetTotalDistance()));
+
+        // 7 Estimated vehicles throughput
+        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Line.EstimateThroughput()));
+
+        // 8 Estimated through needed to transport currently waiting passangers within a month
+        InsertLabelAt(8, "999");
 
         return false;
+    }
+
+
+    public static double GetTotalDistance(this Line line)
+    {
+        // Calculate total distance, for cyclic routes adds last-first section
+        // Distance between cities is not stored, it is calculated when needed :(
+        CityUser[] cities = line.Instructions.Cities; // for readability
+        if (cities.Length < 2)
+        {
+            return 0.0; //  there is no route yet
+        }
+
+        static double GetDistance(CityUser a, CityUser b, byte vehicle_type)
+        {
+            // TODO: this could be cached later on to speed up the calculations
+            switch (vehicle_type)
+            {
+                case 0: return RoadPathSearch.GetRoute(a, b).Distance;
+                case 1: return RoadPathSearch.GetRails(a, b).Distance;
+                case 2: return GameScene.GetDistance(a, b);
+                case 3: return SeaPathSearch.GetRoute(a, b).Distance;
+            }
+            return 0d;
+        }
+
+        double distance = 0.0;
+        for (int i = 1; i < cities.Length; i++)
+        {
+            double _dist = GetDistance(cities[i - 1], cities[i], line.Vehicle_type);
+            distance += _dist;
+        }
+        if (line.Instructions.Cyclic)
+        {
+            double _dist = GetDistance(cities[^1], cities[0], line.Vehicle_type);
+            distance += _dist;
+        }
+        return distance;
     }
 
 
@@ -164,26 +202,13 @@ public static class ExplorerLine_Patches
         // c) total distance and number of stops
         // Formula: avg_capacity * 24 / ( (distance/average_speed) + num_stops * wait_time)
 
-        // Calculate total distance, for cyclic routes adds last-first section
-        // Distance between cities is not stored, it is calculated when needed :(
-        CityUser[] cities = line.Instructions.Cities; // for readability
-        if (cities.Length < 2 || line.Vehicles == 0)
+        if (line.Instructions.Cities.Length < 2 || line.Vehicles == 0)
         {
             return 0; //  there is no route yet or no vehicles assigned
         }
-        double distance = 0.0;
-        int numStops = cities.Length;
-        for (int i = 1; i < cities.Length; i++)
-        {
-            double _dist = GameScene.GetDistance(cities[i - 1], cities[i]);
-            distance += _dist;
-        }
-        if (line.Instructions.Cyclic)
-        {
-            double _dist2 = GameScene.GetDistance(cities[^1], cities[0]);
-            distance += _dist2;
-            numStops++;
-        }
+
+        double distance = line.GetTotalDistance();
+        int numStops = line.Instructions.Cyclic ? line.Instructions.Cities.Length + 1 : line.Instructions.Cities.Length;
 
         // Get station wait time
         int stationTime = 0; // in seconds
@@ -208,7 +233,7 @@ public static class ExplorerLine_Patches
         float averageCapacity = (float)sumCapacityWeighted / (float)sumSpeed;
 
         // Calculate actual throughput
-        float numTrips = 24f / ((float)distance / averageSpeed + (float)stationTime / 3600f);
+        float numTrips = 24f / ((float)distance / averageSpeed + (float)numStops * (float)stationTime / 3600f);
         return line.Vehicles * (int)(averageCapacity * numTrips);
     }
 
