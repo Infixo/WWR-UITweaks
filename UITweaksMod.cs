@@ -71,7 +71,9 @@ public static class ModEntry
         foreach (PropertyInfo property in properties)
         {
             string name = property.Name;
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             object value = property.GetValue(MainData.Defaults);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             Log.Write($"{name}= {value}  ({property.PropertyType.Name})");
         }
     }

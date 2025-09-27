@@ -133,7 +133,7 @@ public static class ExplorerVehicleEntity_Patches
         //float defDistance = 1000f;
         //float numTrips = __instance.Entity.Speed * 24 / defDistance;
         //float throughput = numTrips * (float)ExtensionsHelper.GetPrivateField<int>(__instance, "capacity");
-        Label _through = LabelPresets.GetDefault(StrConversions.CleanNumber((int)__instance.Entity.GetEstimatedThroughput()), scene.Engine);
+        Label _through = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.Entity.GetEstimatedThroughput()), scene.Engine);
         InsertLabel(9, _through);
 
         // 10 Range
