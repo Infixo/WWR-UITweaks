@@ -58,7 +58,7 @@ public static class ExplorerVehicleEntity_Patches
         }
 
         // 0 Name
-        Label _name = LabelPresets.GetDefault(ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetName", []), scene.Engine);
+        Label _name = LabelPresets.GetDefault(__instance.CallPrivateMethod<string>("GetName", []), scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_name, 0, 0);
         __instance.Labels[0] = _name;

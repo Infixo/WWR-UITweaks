@@ -47,7 +47,7 @@ public static class ExplorerCountry_Patches
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetTooltip", [scene]);
+            __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
         };
 
         Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);

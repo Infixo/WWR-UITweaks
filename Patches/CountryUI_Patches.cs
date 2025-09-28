@@ -23,16 +23,16 @@ public static class CountryUI_Patches
         Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, _height, 1f), 1, 8, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
         _grid.Margin_local = new FloatSpace(MainData.Margin_content, 0f);
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "AddControl", [_grid, "info"]);
+        __instance.CallPrivateMethodVoid("AddControl", [_grid, "info"]);
 
-        CompanyUI.AddStats(_grid, 0, Localization.GetCity("capital"), () => ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetCapital", []), __instance.Scene, strong: true);
+        CompanyUI.AddStats(_grid, 0, Localization.GetCity("capital"), () => __instance.CallPrivateMethod<string>("GetCapital", []), __instance.Scene, strong: true);
         CompanyUI.AddStats(_grid, 1, Localization.GetCity("cities"), () => StrConversions.CleanNumber(__instance.Country.Cities.Length), __instance.Scene);
         // No of not connected cities
         CompanyUI.AddStats(_grid, 2, "Not connected", () => StrConversions.CleanNumber(__instance.Country.Cities.Length - __instance.Country.GetConnectedCities()), __instance.Scene);
-        CompanyUI.AddStats(_grid, 3, Localization.GetCity("level"), () => ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetLevel", []), __instance.Scene);
+        CompanyUI.AddStats(_grid, 3, Localization.GetCity("level"), () => __instance.CallPrivateMethod<string>("GetLevel", []), __instance.Scene);
         // Average city level
         CompanyUI.AddStats(_grid, 4, "Average", () => { return StrConversions.CleanNumber((float)__instance.Country.GetLevel() / (float)__instance.Country.Cities.Length); },__instance.Scene);
-        CompanyUI.AddStats(_grid, 5, Localization.GetCity("country_trust"), () => ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetTrust", []), __instance.Scene); // 3 => 4
+        CompanyUI.AddStats(_grid, 5, Localization.GetCity("country_trust"), () => __instance.CallPrivateMethod<string>("GetTrust", []), __instance.Scene); // 3 => 4
 
         // Vehicle companies with the lowest import tax
         var Road = FindBestVehicleCompany(__instance.Country.GetCapital(0).User, "road_vehicle", __instance.Scene);
@@ -81,7 +81,7 @@ public static class CountryUI_Patches
         Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button, 1f), __instance.Scene.Engine, out _content);
         _button.horizontal_alignment = HorizontalAlignment.Stretch;
         _button.Margin_local = new FloatSpace(0f, MainData.Margin_content_items, MainData.Margin_content, MainData.Margin_content_items);
-        ExtensionsHelper.GetPrivateField<ControlCollection>(__instance, "cities").Transfer(_button);
+        __instance.GetPrivateField<ControlCollection>("cities").Transfer(_button);
         y += (int)_button.Size_local_total.Y;
 
         string _text = city.GetNameWithIcon(__instance.Scene);
@@ -113,7 +113,7 @@ public static class CountryUI_Patches
 
         _button.OnMouseStillTime += (Action)delegate
         {
-            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetCityTooltip", [_button, city]);
+            __instance.CallPrivateMethodVoid("GetCityTooltip", [_button, city]);
         };
 
         return false;

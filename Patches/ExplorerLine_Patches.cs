@@ -59,7 +59,7 @@ public static class ExplorerLine_Patches
     {
         // define more labels
         Label[] tmpLabels = new Label[9];
-        ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
+        __instance.SetPublicProperty("Labels", tmpLabels);
 
         // control - button
         int _height = 32;
@@ -69,7 +69,7 @@ public static class ExplorerLine_Patches
         Button butTemp = ___main_button;
         ___main_button.OnMouseStillTime += (Action)delegate
         {
-            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetTooltip", [scene]);
+            __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
             // test
             //TooltipPreset tt = TooltipPreset.Get("Debug", scene.Engine, can_lock: true);
             //tt.AddDescription("test");
@@ -83,7 +83,7 @@ public static class ExplorerLine_Patches
 
         // control - grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
-        ExtensionsHelper.SetPrivateField(__instance, "main_grid", main_grid);
+        __instance.SetPrivateField("main_grid", main_grid);
         main_grid.OnFirstUpdate += (Action)delegate
         {
             main_grid.update_children = false;
@@ -111,7 +111,7 @@ public static class ExplorerLine_Patches
         __instance.Labels[0] = _name;
 
         // 1 Route
-        Label _route = LabelPresets.GetDefault(ExtensionsHelper.CallPrivateMethod<string>(__instance, "GetCurrentRoute", [scene]), scene.Engine);
+        Label _route = LabelPresets.GetDefault(__instance.CallPrivateMethod<string>("GetCurrentRoute", [scene]), scene.Engine);
         _route.Margin_local = new FloatSpace(MainData.Margin_content);
         IControl _radio = LabelPresets.GetRadio(_route, 400);
         _radio.Mouse_visible = false;

@@ -15,6 +15,14 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(RouteUI))]
 public static class RouteUI_Patches
 {
+    [HarmonyPatch("Construct"), HarmonyPostfix]
+    public static void RouteUI_Construct_Postfix(RouteUI __instance, Panel ___main_panel, int ___height)
+    {
+        // Make the window a bit wider to fit long ship names; Finalize sets it for hard 550
+        ___main_panel.Size_local = new Microsoft.Xna.Framework.Vector2(600, ___height);
+    }
+
+
     [HarmonyPatch("Get"), HarmonyPrefix]
     public static bool RouteUI_Get_Prefix(RouteUI __instance, ref RouteUI.VehicleItem __result, VehicleBaseUser vehicle, RouteUI.VehicleItem[] ___items, ControlCollection ___vehicles, GrowArray<VehicleBaseUser> ___selected)
     {
@@ -24,7 +32,9 @@ public static class RouteUI_Patches
             if (___items[i] != null && ___items[i].Vehicle == vehicle)
             {
                 RouteUI.VehicleItem result = ___items[i];
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
                 ___items[i] = null;
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
                 __result = result;
                 return false;
             }
@@ -40,7 +50,6 @@ public static class RouteUI_Patches
         _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items, MainData.Margin_content, MainData.Margin_content_items);
         _grid.Opacity = 0f;
         ___vehicles.Transfer(_grid);
-        //_grid.SetColumn(1, SizeType.Pixels, MainData.Margin_content_items);
 
         // Selection image
         Image _selection = new Image(ContentRectangle.Stretched, MainData.Panel_gradient_left);
@@ -55,6 +64,7 @@ public static class RouteUI_Patches
             _grid.SetColumn(0, SizeType.Pixels, 0f);
             _grid.SetColumn(1, SizeType.Pixels, 0f);
             // vehicle
+            _grid.SetColumn(3, SizeType.Pixels, 0f);
             _grid.SetColumn(4, SizeType.Pixels, 0f);
             _grid.SetColumn(5, SizeType.Pixels, 0f);
             _grid.SetColumn(6, SizeType.Pixels, 0f);
@@ -65,8 +75,8 @@ public static class RouteUI_Patches
         {
             _grid.SetColumn(0, SizeType.Pixels, MainData.Size_button); // select
             _grid.SetColumn(1, SizeType.Pixels, MainData.Margin_content_items);
-            // vehicle
-            _grid.SetColumn(3, SizeType.Pixels, MainData.Margin_content_items);
+            //_grid.SetColumn(2, SizeType.Pixels, MainData.Size_button * 20); // vehicle
+            _grid.SetColumn(3, SizeType.Pixels, MainData.Margin_content_items); // this is needed, otherwise the button is only half-size
             _grid.SetColumn(4, SizeType.Pixels, MainData.Size_button); // upgrade
             _grid.SetColumn(5, SizeType.Pixels, MainData.Margin_content_items);
             _grid.SetColumn(6, SizeType.Pixels, MainData.Size_button); // duplicate
@@ -199,16 +209,4 @@ public static class RouteUI_Patches
         __result = new RouteUI.VehicleItem(_grid, vehicle);
         return false;
     }
-    /*
-    private void GetUpgrade(IControl parent, VehicleBaseUser Vehicle)
-    {
-        UpgradeUI.Get(parent, Vehicle, Scene);
-    }
-    
-    private void Duplicate(IControl parent, VehicleBaseUser Vehicle)
-    {
-        Vehicle.Duplicate(Scene);
-        base.Main_control.Ui?.RemoveNestedControlsByParent(parent);
-    }
-    */
 }
