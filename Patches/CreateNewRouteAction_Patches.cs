@@ -58,6 +58,28 @@ public static class CreateNewRouteAction_Patches
             {
                 _explorer.city = route.Cities.TryGet(0, null);
             }
+
+            // Patch 1.1.8
+            if (type == byte.MaxValue)
+            {
+                if (scene.Settings.VehicleIsValid(MainData.Road_vehicles[0]) && !scene.Settings.VehicleIsValid(MainData.Trains[0]) && !scene.Settings.VehicleIsValid(MainData.Planes[0]) && !scene.Settings.VehicleIsValid(MainData.Ships[0]))
+                {
+                    type = 0;
+                }
+                else if (!scene.Settings.VehicleIsValid(MainData.Road_vehicles[0]) && scene.Settings.VehicleIsValid(MainData.Trains[0]) && !scene.Settings.VehicleIsValid(MainData.Planes[0]) && !scene.Settings.VehicleIsValid(MainData.Ships[0]))
+                {
+                    type = 1;
+                }
+                else if (!scene.Settings.VehicleIsValid(MainData.Road_vehicles[0]) && !scene.Settings.VehicleIsValid(MainData.Trains[0]) && scene.Settings.VehicleIsValid(MainData.Planes[0]) && !scene.Settings.VehicleIsValid(MainData.Ships[0]))
+                {
+                    type = 2;
+                }
+                else if (!scene.Settings.VehicleIsValid(MainData.Road_vehicles[0]) && !scene.Settings.VehicleIsValid(MainData.Trains[0]) && !scene.Settings.VehicleIsValid(MainData.Planes[0]) && scene.Settings.VehicleIsValid(MainData.Ships[0]))
+                {
+                    type = 3;
+                }
+            }
+
             switch (type)
             {
                 case byte.MaxValue:
