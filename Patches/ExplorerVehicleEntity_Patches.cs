@@ -1,16 +1,14 @@
-﻿using HarmonyLib;
-using Microsoft.Xna.Framework;
+﻿using System.Runtime.CompilerServices;
+using HarmonyLib;
+using Utilities;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
-using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace UITweaks.Patches;
 
@@ -77,10 +75,6 @@ public static class ExplorerVehicleEntity_Patches
         //string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
         int capacity = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity"); // we need it 2x
         Label _capacity = LabelPresets.GetDefault(StrConversions.CleanNumber(capacity), scene.Engine);
-        //_capacity.horizontal_alignment = HorizontalAlignment.Center;
-        //_capacity.Margin_local = new FloatSpace(MainData.Margin_content);
-        //main_grid.Transfer(_capacity, 2, 0);
-        //__instance.Labels[2] = _capacity;
         InsertLabel(2, _capacity);
 
         // 3 min passengeres

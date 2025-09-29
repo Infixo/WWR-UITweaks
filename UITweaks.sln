@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36511.14 d17.14
+VisualStudioVersion = 17.14.36511.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UITweaks", "UITweaks.csproj", "{B37A7521-57DF-4CB4-B4FB-1E96081D5210}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "WWR-Utilities", "..\WWR-Utilities\WWR-Utilities.shproj", "{C795BFEA-4839-44DD-A100-DB17E03C49AA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,5 +23,9 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D917F903-A44D-4762-8266-15A4D618705E}
+	EndGlobalSection
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\WWR-Utilities\WWR-Utilities.projitems*{b37a7521-57df-4cb4-b4fb-1e96081d5210}*SharedItemsImports = 5
+		..\WWR-Utilities\WWR-Utilities.projitems*{c795bfea-4839-44dd-a100-db17e03c49aa}*SharedItemsImports = 13
 	EndGlobalSection
 EndGlobal

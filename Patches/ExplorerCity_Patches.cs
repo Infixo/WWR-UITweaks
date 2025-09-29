@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
-using Microsoft.Xna.Framework;
 using HarmonyLib;
+using Utilities;
+using Microsoft.Xna.Framework;
 using STM.Data;
 using STM.GameWorld;
 using STM.GameWorld.Users;
@@ -19,22 +20,6 @@ public static class ExplorerCity_Patches
     [HarmonyPatch(typeof(InfoUI), "GetCitiesCategories"), HarmonyPrefix]
     public static bool InfoUI_GetCitiesCategories_Prefix(ref string[] __result)
     {
-        // debug
-        /*
-        Log.Write(Localization.GetVehicle("estimated_profit")); // ok
-        Log.Write(Localization.GetInfo("minimum_efficiency")); // tooltip
-        Log.Write(Localization.GetGeneral("efficiency")); // ok
-        Log.Write(Localization.GetInfo("vehicle_efficiency")); // tooltip
-        Log.Write(Localization.GetGeneral("passengers")); // ok
-        Log.Write(Localization.GetInfo("range")); // tooltip
-        Log.Write(Localization.GetGeneral("range")); // ok
-        Log.Write(Localization.GetCity("indirect_capacity")); // ok
-        Log.Write(Localization.GetCity("fulfillment")); // ok
-        Log.Write(Localization.GetCity("company_trust")); // ok
-        Log.Write(Localization.GetCity("connecting")); // ok
-        Log.Write(Localization.GetInfo("infrastructure")); // tooltip
-        */
-
         __result =
         [
             Localization.GetGeneral("name"), // 0
@@ -108,30 +93,18 @@ public static class ExplorerCity_Patches
         Country _c = __instance.City.City.GetCountry(scene);
         string country = _c.Name.GetTranslation(Localization.Language);
         Label _country = LabelPresets.GetDefault("<!cicon_" + _c.ISO3166_1 + ":28> " + country, scene.Engine);
-        //_country.Margin_local = new FloatSpace(MainData.Margin_content);
-        //main_grid.Transfer(_country, 1, 0);
-        //__instance.Labels[1] = _country;
         InsertLabel(1, _country, HorizontalAlignment.Left);
 
         // 2 level
         ushort player = scene.Session.Player;
         Hub? hub = __instance.City.GetHub(player);
         string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level);
-        //if (hub != null) level += " <!cicon_storage>";
         Label _level = LabelPresets.GetDefault(level, scene.Engine);
-        //_level.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_level.horizontal_alignment = HorizontalAlignment.Center;
-        //main_grid.Transfer(_level, 2, 0);
-        //__instance.Labels[2] = _level;
         InsertLabel(2, _level);
 
         // 3 MODDED indirect capacity
         Label _indirect = LabelPresets.GetDefault($"{StrConversions.CleanNumber(__instance.City.GetTotalIndirect())} / {StrConversions.CleanNumber(__instance.City.GetMaxIndirect())}", scene.Engine);
         _indirect.Color = CityWorldGraphics_Patches.OvercrowdedColor(__instance.City, LabelPresets.Color_main);
-        //_indirect.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_indirect.horizontal_alignment = HorizontalAlignment.Center;
-        //main_grid.Transfer(_indirect, 3, 0);
-        //__instance.Labels[3] = _indirect;
         InsertLabel(3, _indirect);
 
         // 4 Biggest crowd
@@ -153,19 +126,11 @@ public static class ExplorerCity_Patches
             }
         Label _fulfillment = LabelPresets.GetDefault(fulfillment, scene.Engine);
         _fulfillment.Color = color;
-        //_fulfillment.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_fulfillment.horizontal_alignment = HorizontalAlignment.Center;
-        //main_grid.Transfer(_fulfillment, 4, 0);
-        //__instance.Labels[4] = _fulfillment;
         InsertLabel(5, _fulfillment);
 
         // 6 MODDED company_trust
         Label _trust = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.City.Trust.GetPercent(player)), scene.Engine);
         if (__instance.City.Trust.Dominated == player) _trust.Color = LabelPresets.Color_positive;
-        //_trust.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_trust.horizontal_alignment = HorizontalAlignment.Center;
-        //main_grid.Transfer(_trust, 5, 0);
-        //__instance.Labels[5] = _trust;
         InsertLabel(6, _trust);
 
         // 7 MODDED infrastructure
@@ -197,17 +162,13 @@ public static class ExplorerCity_Patches
                 buildings = "<!cicon_storage>";
             _infra = LabelPresets.GetBold(buildings, scene.Engine);
         }
-        //_infra.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_infra.horizontal_alignment = HorizontalAlignment.Center;
-        //main_grid.Transfer(_infra, 6, 0);
-        //__instance.Labels[6] = _infra;
         InsertLabel(7, _infra);
 
         // store into private fields
-        ExtensionsHelper.SetPrivateField(__instance, "main_grid", main_grid);
-        ExtensionsHelper.SetPrivateField(__instance, "main_button", main_button);
-        ExtensionsHelper.SetPrivateField(__instance, "alt", alt);
-        ExtensionsHelper.SetPrivateField(__instance, "country", country);
+        __instance.SetPrivateField("main_grid", main_grid);
+        __instance.SetPrivateField("main_button", main_button);
+        __instance.SetPrivateField("alt", alt);
+        __instance.SetPrivateField("country", country);
 
         return false; // skip the original
     }

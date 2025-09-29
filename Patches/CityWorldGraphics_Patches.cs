@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using System.Reflection;
+using HarmonyLib;
+using Utilities;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using STM.Data;
@@ -9,9 +11,9 @@ using STMG.Drawing;
 using STMG.Drawing.FreeType;
 using STMG.Engine;
 using STVisual.Utility;
-using System.Reflection;
 
 namespace UITweaks.Patches;
+
 
 [HarmonyPatch(typeof(CityWorldGraphics))]
 public static class CityWorldGraphics_Patches

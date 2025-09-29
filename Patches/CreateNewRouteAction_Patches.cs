@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using System.Runtime.CompilerServices;
+using HarmonyLib;
+using Utilities;
 using STM.Data;
 using STM.GameWorld;
 using STM.GameWorld.Users;
@@ -6,7 +8,6 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System.Runtime.CompilerServices;
 
 namespace UITweaks.Patches;
 

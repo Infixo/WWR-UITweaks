@@ -1,11 +1,11 @@
 ﻿using HarmonyLib;
+using Utilities;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
-using STM.UI.Floating;
 using STMG.UI.Control;
 using STVisual.Utility;
 

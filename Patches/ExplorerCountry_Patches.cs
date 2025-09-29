@@ -1,16 +1,12 @@
 ﻿using HarmonyLib;
+using Utilities;
 using STM.Data;
 using STM.GameWorld;
-using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
-using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
-using System;
-using System.Linq;
-using System.Text;
 
 namespace UITweaks.Patches;
 
@@ -114,11 +110,11 @@ public static class ExplorerCountry_Patches
         __instance.Labels[4] = _connected;
 
         // store into private fields
-        ExtensionsHelper.SetPrivateField(__instance, "main_grid", main_grid);
-        ExtensionsHelper.SetPrivateField(__instance, "main_button", main_button);
-        ExtensionsHelper.SetPrivateField(__instance, "alt", alt);
-        ExtensionsHelper.SetPrivateField(__instance, "name", name);
-        ExtensionsHelper.SetPrivateField(__instance, "level", level);
+        __instance.SetPrivateField("main_grid", main_grid);
+        __instance.SetPrivateField("main_button", main_button);
+        __instance.SetPrivateField("alt", alt);
+        __instance.SetPrivateField("name", name);
+        __instance.SetPrivateField("level", level);
 
         return false; // skip the original
     }
