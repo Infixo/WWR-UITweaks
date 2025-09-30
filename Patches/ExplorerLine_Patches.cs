@@ -1,5 +1,4 @@
 ﻿using HarmonyLib;
-using Utilities;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -8,6 +7,8 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System.Runtime.CompilerServices;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -15,6 +16,17 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerLine))]
 public static class ExplorerLine_Patches
 {
+    // data extensions
+    public class ExtraData
+    {
+        public double Distance;
+        public int Throughput;
+        public long Waiting;
+    }
+    private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
+    public static ExtraData Extra(this ExplorerLine line) => _extras.GetOrCreateValue(line);
+
+
     [HarmonyPatch(typeof(InfoUI), "GetRoutesCategories"), HarmonyPrefix]
     public static bool InfoUI_GetRoutesCategories_Prefix(ref string[] __result)
     {
@@ -46,8 +58,8 @@ public static class ExplorerLine_Patches
                 _tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
                 break;
             case 8:
-                _tooltip = TooltipPreset.Get("Transport needs", ___Session.Scene.Engine);
-                _tooltip.AddDescription("Estimated throughput needed to transport within a month passengers within a given line i.e. passengers wanting to use another line are excluded.");
+                _tooltip = TooltipPreset.Get("Waiting", ___Session.Scene.Engine);
+                _tooltip.AddDescription("Passengers wanting to use the line. Passengers waiting to use another line are excluded.");
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
@@ -143,17 +155,19 @@ public static class ExplorerLine_Patches
         InsertLabelAt(5, StrConversions.CleanNumber(__instance.Line.Instructions.Cities.Length) + (__instance.Line.Instructions.Cyclic ? " <!cicon_down>" : ""));
 
         // 6 Length
-        InsertLabelAt(6, StrConversions.GetDistance(__instance.Line.GetTotalDistance()));
+        __instance.Extra().Distance = __instance.Line.GetTotalDistance();
+        InsertLabelAt(6, StrConversions.GetDistance(__instance.Extra().Distance));
 
         // 7 Estimated vehicles throughput
-        int throughput = __instance.Line.EstimateThroughput();
+        __instance.Extra().Throughput = __instance.Line.EstimateThroughput();
         if (__instance.Line.Instructions.Cities.Length > 2)
-            InsertLabelAt(7, $"{StrConversions.CleanNumber(throughput)} .. {StrConversions.CleanNumber(throughput * (__instance.Line.Instructions.Cities.Length-1))}");
+            InsertLabelAt(7, $"{StrConversions.CleanNumber(__instance.Extra().Throughput)} .. {StrConversions.CleanNumber(__instance.Extra().Throughput * (__instance.Line.Instructions.Cities.Length-1))}");
         else
-            InsertLabelAt(7, StrConversions.CleanNumber(throughput));
+            InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
         // 8 Estimated through needed to transport currently waiting passangers within a month
-        InsertLabelAt(8, StrConversions.CleanNumber(__instance.Line.GetWaiting()));
+        __instance.Extra().Waiting = __instance.Line.GetWaiting();
+        InsertLabelAt(8, StrConversions.CleanNumber(__instance.Extra().Waiting));
 
         return false;
     }
@@ -267,15 +281,15 @@ public static class ExplorerLine_Patches
                 break;
 
             case 6: // length
-                result = __instance.Line.GetTotalDistance().CompareTo(_item.Line.GetTotalDistance());
+                result = __instance.Extra().Distance.CompareTo(_item.Extra().Distance);
                 break;
 
             case 7: // throughput
-                result = __instance.Line.EstimateThroughput().CompareTo(_item.Line.EstimateThroughput());
+                result = __instance.Extra().Throughput.CompareTo(_item.Extra().Throughput);
                 break;
 
             case 8: // waiting
-                result = __instance.Line.GetWaiting().CompareTo(_item.Line.GetWaiting());
+                result = __instance.Extra().Waiting.CompareTo(_item.Extra().Waiting);
                 break;
         }
 
