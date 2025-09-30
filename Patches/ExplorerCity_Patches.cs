@@ -58,7 +58,8 @@ public static class ExplorerCity_Patches
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            ExplorerCity_GetTooltip_Reverse(__instance, scene);
+            //ExplorerCity_GetTooltip_Reverse(__instance, scene);
+            __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
         };
 
         Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
@@ -177,40 +178,7 @@ public static class ExplorerCity_Patches
     // Extension to get the "biggest crowd" - a destination with the higherst number of travellers
     public static int GetBiggestCrowd(this CityUser city)
     {
-        Dictionary<CityUser, int> travellers = [];
-
-        // helper
-        void RegisterTravellers(CityUser cityUser, int people)
-        {
-            if (!travellers.ContainsKey(cityUser))
-                travellers[cityUser] = 0;
-            travellers[cityUser] += people;
-        }
-
-        // review destinations
-        for (int l = 0; l < city.Destinations.Items.Count; l++)
-        {
-            CityDestination dest = city.Destinations.Items[l];
-            if (dest.People > 0)
-                RegisterTravellers(dest.Destination.User, dest.People);
-        }
-
-        // review indirect traffic
-        for (int k = 0; k < city.Indirect.Count; k++)
-        {
-            Passengers dest = city.Indirect.Items[k];
-            if (dest.People != 0)
-                RegisterTravellers(dest.Destination.User, dest.People);
-        }
-
-        // review returning ones
-        for (int j = 0; j < city.Returns.Count; j++)
-        {
-            ReturnDestination dest = city.Returns[j];
-            if (dest.Ready != 0)
-                RegisterTravellers(dest.Home.User, dest.Ready);
-        }
-
+        Dictionary<CityUser, int> travellers = city.GetAllPassengers();
         return travellers.Count > 0 ? travellers.Values.Max() : 0;
     }
 

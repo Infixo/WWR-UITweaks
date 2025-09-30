@@ -153,7 +153,7 @@ public static class ExplorerLine_Patches
             InsertLabelAt(7, StrConversions.CleanNumber(throughput));
 
         // 8 Estimated through needed to transport currently waiting passangers within a month
-        InsertLabelAt(8, "999");
+        InsertLabelAt(8, StrConversions.CleanNumber(__instance.Line.GetWaiting()));
 
         return false;
     }
@@ -275,7 +275,7 @@ public static class ExplorerLine_Patches
                 break;
 
             case 8: // waiting
-                result = 0;
+                result = __instance.Line.GetWaiting().CompareTo(_item.Line.GetWaiting());
                 break;
         }
 
