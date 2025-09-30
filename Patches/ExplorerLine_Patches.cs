@@ -7,6 +7,7 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Utilities;
 
@@ -16,7 +17,7 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerLine))]
 public static class ExplorerLine_Patches
 {
-    // data extensions
+    // Data extensions
     public class ExtraData
     {
         public double Distance;
@@ -44,6 +45,31 @@ public static class ExplorerLine_Patches
         "<!cicon_passenger>", // 8
         ];
         return false;
+    }
+
+
+    // Simple stopwatch and counters to measure ExplorerLine performance
+    public static Stopwatch sw = new();
+
+    [HarmonyPatch(typeof(InfoUI), "GetRoutes"), HarmonyPrefix]
+    public static bool InfoUI_GetRoutes_Prefix()
+    {
+        sw.Reset(); sw.Start();
+        WorldwideRushExtensions.CounterIsConn = 0;
+        WorldwideRushExtensions.CounterGetLine0 = 0;
+        WorldwideRushExtensions.CounterGetLine1 = 0;
+        WorldwideRushExtensions.CounterGetLine2 = 0;
+        WorldwideRushExtensions.CounterGetLine3 = 0;
+        WorldwideRushExtensions.CounterGetPath = 0;
+        return true; // continue
+    }
+
+    [HarmonyPatch(typeof(InfoUI), "GetRoutes"), HarmonyPostfix]
+    public static void InfoUI_GetRoutes_Postfix()
+    {
+        sw.Stop();
+        Log.Write($"Elapsed time: {sw.ElapsedMilliseconds} ms, IC={WorldwideRushExtensions.CounterIsConn} GP={WorldwideRushExtensions.CounterGetPath}");
+        Log.Write($"Counters: 0= {WorldwideRushExtensions.CounterGetLine0} 1={WorldwideRushExtensions.CounterGetLine1} 2={WorldwideRushExtensions.CounterGetLine2} 3={WorldwideRushExtensions.CounterGetLine3} ");
     }
 
 
@@ -214,7 +240,6 @@ public static class ExplorerLine_Patches
     public static int EstimateThroughput(this Line line)
     {
         // Calculate throughput based on actual vehicles and route distances
-        // What is needed:
         // a) average speed
         // b) average vehicle capacity, weighted with speed
         // c) total distance and number of stops
