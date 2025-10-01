@@ -105,7 +105,7 @@ public static class ExplorerCity_Patches
 
         // 3 MODDED indirect capacity
         Label _indirect = LabelPresets.GetDefault($"{StrConversions.CleanNumber(__instance.City.GetTotalIndirect())} / {StrConversions.CleanNumber(__instance.City.GetMaxIndirect())}", scene.Engine);
-        _indirect.Color = CityWorldGraphics_Patches.OvercrowdedColor(__instance.City, LabelPresets.Color_main);
+        _indirect.Color = __instance.City.OvercrowdedColor(LabelPresets.Color_main);
         InsertLabel(3, _indirect);
 
         // 4 Biggest crowd

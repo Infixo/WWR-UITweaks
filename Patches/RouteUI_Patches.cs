@@ -1,12 +1,16 @@
 ﻿using HarmonyLib;
 using Utilities;
 using STM.Data;
+using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Floating;
+using STM.UI.Stats;
+using STMG.Engine;
 using STMG.UI;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System.Reflection.Metadata.Ecma335;
 
 namespace UITweaks.Patches;
 
@@ -206,6 +210,187 @@ public static class RouteUI_Patches
 
         // Final result
         __result = new RouteUI.VehicleItem(_grid, vehicle);
+        return false;
+    }
+
+
+    [HarmonyPatch("GetRouteControl"), HarmonyPrefix]
+    public static bool RouteUI_GetRouteControl_Prefix(RouteUI __instance, ControlCollection route, RouteCycle cycle, ref float y)
+    {
+        CityUser _city = __instance.Line.Instructions.Cities[cycle.Current];
+
+        // Button
+        ControlCollection _content;
+        Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button, 1f), __instance.Scene.Engine, out _content);
+        _button.horizontal_alignment = HorizontalAlignment.Stretch;
+        y += _button.Size_local_total.Y;
+        route.Transfer(_button);
+        _button.OnMouseStillTime += (Action)delegate
+        {
+            GeneralTooltips.GetCity(__instance.Scene.Engine, _city).AddToControlAuto(_button);
+        };
+        _button.OnButtonPress += (Action)delegate
+        {
+            if (__instance.Scene.tracking == _city)
+            {
+                _city.Select(__instance.Scene, track: true);
+            }
+            else
+            {
+                __instance.Scene.tracking = _city;
+            }
+        };
+
+        // Grid - inside of the Button
+        Grid _grid = new Grid(ContentRectangle.Stretched, 4, 1, SizeType.Weight);
+        _grid.SetColumn(0, SizeType.Pixels, MainData.Size_button);
+        _grid.SetColumn(3, SizeType.Pixels, MainData.Size_button/2);
+        _content.Transfer(_grid);
+
+        // 0 Id
+        Label _id = LabelPresets.GetBold(StrConversions.CleanNumber(cycle.Current + 1) + ".", __instance.Scene.Engine);
+        _id.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_id, 0, 0);
+
+        // 1 Name + overcrowded color
+        Label _city_label = LabelPresets.GetBold(_city.GetNameWithIcon(__instance.Scene), __instance.Scene.Engine);
+        _city_label.Color = _city.OvercrowdedColor(LabelPresets.Color_main);
+        _grid.Transfer(_city_label, 1, 0);
+
+        // 2 Waiting
+        Label _waiting = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.Line.GetWaiting(_city)), __instance.Scene.Engine);
+        _waiting.horizontal_alignment = HorizontalAlignment.Right;
+        _grid.Transfer(_waiting, 2, 0);
+
+        // 3 Empty, place for scroll
+
+        return false;
+    }
+
+
+    [HarmonyPatch("GetPerformance"), HarmonyPrefix]
+    public static bool RouteUI_GetPerformance_Prefix(RouteUI __instance, ref Label ___label_balance, ref Label ___label_efficiency)
+    {
+        // Grid 1x11
+        // 0: eff + bal
+        // 1: space
+        // 2: thr + veh
+        // 3: space
+        // 4: wait + dist
+        // 5: space
+        // 6-9: graph (4 rows)
+        // 10: space
+        int _height = MainData.Size_button * 7 + MainData.Margin_content_items * 4;
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, _height, 1f), 1, 11, SizeType.Weight);
+        _grid.Margin_local = new FloatSpace(MainData.Margin_content, MainData.Margin_content_items);
+        __instance.CallPrivateMethodVoid("AddControl", [_grid, "perf"]);
+        _grid.SetRow( 1, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetRow( 3, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetRow( 5, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetRow(10, SizeType.Pixels, MainData.Margin_content_items);
+
+        // Panel ???
+        /*
+        Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_company_back_bottom);
+        _panel.Margin_local = new FloatSpace(-MainData.Margin_content + MainData.Margin_content_items + 2, 0f);
+        _panel.Color = __instance.Company.Color_secondary;
+        _panel.use_multi_texture = true;
+        _grid.Transfer(_panel, 0, 4, _grid.Columns_count, _grid.Rows_count - 4);
+        */
+
+        // Performance tooltip
+        ControlContainer _container_performance = new ControlContainer(ContentRectangle.Stretched);
+        _container_performance.mouse_pass = false;
+        _grid.Transfer(_container_performance, 0, 0);
+        _container_performance.OnMouseStillTime += (Action)delegate
+        {
+            __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
+        };
+
+        // Row0 Balance
+        ___label_balance = LabelPresets.GetBold("", __instance.Scene.Engine);
+        ___label_balance.horizontal_alignment = HorizontalAlignment.Right;
+        ___label_balance.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(___label_balance, 0, 0);
+
+        // Row0 Efficiency
+        ___label_efficiency = LabelPresets.GetBold("", __instance.Scene.Engine);
+        ___label_efficiency.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(___label_efficiency, 0, 0);
+
+        // Row1 Throughtput
+        Label throughput = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>", __instance.Scene.Engine);
+        throughput.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(throughput, 0, 2);
+
+        // Row1 Vehicles
+        string typeIcon = "?";
+        switch (__instance.Line.Vehicle_type)
+        {
+            case 0: typeIcon = " <!cicon_road_vehicle>"; break;
+            case 1: typeIcon = " <!cicon_train>"; break;
+            case 2: typeIcon = " <!cicon_plane>"; break;
+            case 3: typeIcon = " <!cicon_ship>"; break;
+        }
+        Label vehicles = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.Vehicles) + typeIcon, __instance.Scene.Engine);
+        vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
+        vehicles.horizontal_alignment = HorizontalAlignment.Right;
+        _grid.Transfer(vehicles, 0, 2);
+
+        // Row2 Waiting
+        Label waiting = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetWaiting())+" <!cicon_passenger>", __instance.Scene.Engine);
+        waiting.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(waiting, 0, 4);
+
+        // Row2 Distance
+        Label distance = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Line.GetTotalDistance()), __instance.Scene.Engine);
+        distance.Margin_local = new FloatSpace(MainData.Margin_content);
+        distance.horizontal_alignment = HorizontalAlignment.Right;
+        _grid.Transfer(distance, 0, 4);
+
+        // Balance graph
+        IControl _graph = ChartLine.GetSingle(new GraphSettings(step => __instance.CallPrivateMethod<long>("GetValue", [step]), 12, -1L, -1L, 2L)
+        {
+            //update_tooltip = UpdateGraphTooltip
+            // lamba magic here!
+            update_tooltip = (tooltip, settings, id) => __instance.CallPrivateMethodVoid("UpdateGraphTooltip", [tooltip, settings, id])
+        }, fill: true, __instance.Company.GetGridColor());
+        _grid.Transfer(_graph, 0, 6, 1, 4);
+        _graph.Margin_local = new FloatSpace(MainData.Margin_content);
+
+        return false;
+    }
+
+
+    // Calculate actual efficieny (it is NOT average of efficiencies!)
+    [HarmonyPatch(typeof(Line), "GetQuarterAverageEfficiency"), HarmonyPrefix]
+    public static bool Line_GetQuarterAverageEfficiency_Prefix(Line __instance, ref long __result)
+    {
+        if (__instance.Vehicles == 0)
+        {
+            __result = 0;
+            return false;
+        }
+        long _result = 0L;
+        for (int i = 0; i < __instance.Routes.Count; i++)
+        {
+            _result += __instance.Routes[i].Vehicle.Efficiency.GetQuarterAverage();
+        }
+        __result = _result / __instance.Vehicles;
+        return false;
+    }
+
+
+    // Calculate actual quarter (3 months) average
+    [HarmonyPatch(typeof(Line), "GetQuarterAverageThroughput"), HarmonyPrefix]
+    public static bool Line_GetQuarterAverageThroughput_Prefix(Line __instance, ref long __result)
+    {
+        long _result = 0L;
+        for (int i = 0; i < __instance.Routes.Count; i++)
+        {
+            _result += __instance.Routes[i].Vehicle.Throughput.GetSumAverage(3);
+        }
+        __result = _result;
         return false;
     }
 }

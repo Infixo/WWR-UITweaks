@@ -48,6 +48,12 @@ public static class ExplorerLine_Patches
     }
 
 
+    [HarmonyPatch(typeof(InfoUI), "GetRoutesFilterCategories"), HarmonyPostfix]
+    public static void  InfoUI_GetRoutesFilterCategories_Postix(FilterCategory[] __result)
+    {
+        __result[0].Items[0].SetValue(0); // show empty lines
+    }
+
     // Simple stopwatch and counters to measure ExplorerLine performance
     public static Stopwatch sw = new();
 
