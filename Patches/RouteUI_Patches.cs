@@ -1,6 +1,6 @@
 ﻿using HarmonyLib;
-using Utilities;
 using STM.Data;
+using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
@@ -9,8 +9,9 @@ using STM.UI.Stats;
 using STMG.Engine;
 using STMG.UI;
 using STMG.UI.Control;
+using STMG.UI.Utility;
 using STVisual.Utility;
-using System.Reflection.Metadata.Ecma335;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -214,10 +215,66 @@ public static class RouteUI_Patches
     }
 
 
-    [HarmonyPatch("GetRouteControl"), HarmonyPrefix]
-    public static bool RouteUI_GetRouteControl_Prefix(RouteUI __instance, ControlCollection route, RouteCycle cycle, ref float y)
+    [HarmonyPatch("GetRoute"), HarmonyPrefix]
+    public static bool RouteUI_GetRoute_Prefix(RouteUI __instance)
     {
-        CityUser _city = __instance.Line.Instructions.Cities[cycle.Current];
+        __instance.SetPrivateField("route", __instance.Line.Instructions.Cities);
+        int _height = MainData.Size_button * __instance.Line.Instructions.Cities.Length;
+        //if (!Line.Instructions.Cyclic)
+        //{
+            //_height += MainData.Size_button * (Line.Instructions.Cities.Length - 2);
+        //}
+        int _height_max = _height;
+        int _limit = (int)(__instance.Scene.UI.controls.Size_local.Y - 1200f);
+        if (_limit > 600)
+        {
+            _limit = 600;
+        }
+        else if (_limit < 200)
+        {
+            _limit = 200;
+        }
+        if (_height > _limit)
+        {
+            _height = _limit;
+        }
+        ControlCollection _route = new ControlCollection(new ContentRectangle(0f, 0f, 0f, _height_max, 1f));
+        _route.horizontal_alignment = HorizontalAlignment.Stretch;
+        __instance.RouteUI_PopulateRoute_Prefix(_route);
+        if (_height_max == _height)
+        {
+            _route.Margin_local = new FloatSpace(MainData.Margin_content, 0f);
+            __instance.CallPrivateMethodVoid("AddControl", [_route, "route"]);
+            return false;
+        }
+        IControl _scroll = ScrollPreset.GetVertical(new ContentRectangle(0f, 0f, 0f, _height, 1f), _route, ContentPreset.GetScrollSettings());
+        _scroll.horizontal_alignment = HorizontalAlignment.Stretch;
+        _scroll.Margin_local = new FloatSpace(MainData.Margin_content, 0f);
+        __instance.CallPrivateMethodVoid("AddControl", [_scroll, "route"]);
+        return false;
+    }
+
+
+    //[HarmonyPatch("PopulateRoute"), HarmonyPrefix]
+    public static bool RouteUI_PopulateRoute_Prefix(this RouteUI __instance, ControlCollection route)
+    {
+        //RouteCycle _cycle = default(RouteCycle);
+        float _y = 0f;
+        for (int i = 0; i< __instance.Line.Instructions.Cities.Length; i++)
+            __instance.RouteUI_GetRouteControl_Prefix(route, i, ref _y);
+        //_cycle.Move(Line.Instructions);
+        //while (_cycle.Current != 0)
+        //{
+            //GetRouteControl(route, _cycle, ref _y);
+            //_cycle.Move(Line.Instructions);
+        //}
+        return false;
+    }
+
+    //[HarmonyPatch("GetRouteControl"), HarmonyPrefix]
+    public static bool RouteUI_GetRouteControl_Prefix(this RouteUI __instance, ControlCollection route, int index, ref float y)
+    {
+        CityUser _city = __instance.Line.Instructions.Cities[index];
 
         // Button
         ControlCollection _content;
@@ -248,7 +305,7 @@ public static class RouteUI_Patches
         _content.Transfer(_grid);
 
         // 0 Id
-        Label _id = LabelPresets.GetBold(StrConversions.CleanNumber(cycle.Current + 1) + ".", __instance.Scene.Engine);
+        Label _id = LabelPresets.GetBold(StrConversions.CleanNumber(index + 1) + ".", __instance.Scene.Engine);
         _id.horizontal_alignment = HorizontalAlignment.Center;
         _grid.Transfer(_id, 0, 0);
 
@@ -343,7 +400,8 @@ public static class RouteUI_Patches
         _grid.Transfer(waiting, 0, 4);
 
         // Row2 Distance
-        Label distance = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Line.GetTotalDistance()), __instance.Scene.Engine);
+        string cyclic = Localization.GetInfrastructure(__instance.Line.Instructions.Cyclic ? "route_cyclic_yes" : "route_cyclic_no");
+        Label distance = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Line.GetTotalDistance()) + $" ({cyclic})", __instance.Scene.Engine);
         distance.Margin_local = new FloatSpace(MainData.Margin_content);
         distance.horizontal_alignment = HorizontalAlignment.Right;
         _grid.Transfer(distance, 0, 4);
@@ -371,12 +429,23 @@ public static class RouteUI_Patches
             __result = 0;
             return false;
         }
-        long _result = 0L;
+        long transported = 0; // how many we actually transported
+        long maxCapacity = 0; // how many we could
+        //long _result = 0L;
         for (int i = 0; i < __instance.Routes.Count; i++)
         {
-            _result += __instance.Routes[i].Vehicle.Efficiency.GetQuarterAverage();
+            VehicleBaseUser vehicle = __instance.Routes[i].Vehicle;
+            //int capacity = vehicle.Entity_base is TrainEntity train ? train.Max_capacity : vehicle.Entity_base.Capacity;
+            for (int offset = 0; offset < 3; offset++)
+                if (vehicle.Throughput.Months > offset && vehicle.Efficiency.GetOffset(offset) > 0)
+                {
+                    transported += vehicle.Throughput.GetOffset(offset);
+                    maxCapacity += vehicle.Throughput.GetOffset(offset) * 100 / vehicle.Efficiency.GetOffset(offset);
+                }
+            //_result += __instance.Routes[i].Vehicle.Efficiency.GetQuarterAverage();
         }
-        __result = _result / __instance.Vehicles;
+        //__result = _result / __instance.Vehicles;
+        __result = transported * 100 / maxCapacity;
         return false;
     }
 

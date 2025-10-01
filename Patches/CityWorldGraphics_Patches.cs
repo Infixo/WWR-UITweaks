@@ -160,7 +160,7 @@ public static class CityWorldGraphics_Patches
         }
         if (_collision)
         {
-            layers.Collisions.Add(new CollisionUser(city, _bounds.Expand(0.1f), -1));
+            layers.Collisions.GetNext().Set(city, _bounds.Expand(0.1f), -1);
         }
         ((GameSprite)MainData.Panel_blur_shadow).DrawHeight(layers.CitiesAO(), new VectorRectangle(offset.X - 0.5f, offset.Y - 0.2f, offset.X + _size.X + 0.5f, offset.Y + 0.4f), Color.Black * ((float)(int)color.A / 255f) * 0.8f, height);
 
