@@ -431,21 +431,17 @@ public static class RouteUI_Patches
         }
         long transported = 0; // how many we actually transported
         long maxCapacity = 0; // how many we could
-        //long _result = 0L;
         for (int i = 0; i < __instance.Routes.Count; i++)
         {
             VehicleBaseUser vehicle = __instance.Routes[i].Vehicle;
-            //int capacity = vehicle.Entity_base is TrainEntity train ? train.Max_capacity : vehicle.Entity_base.Capacity;
             for (int offset = 0; offset < 3; offset++)
                 if (vehicle.Throughput.Months > offset && vehicle.Efficiency.GetOffset(offset) > 0)
                 {
                     transported += vehicle.Throughput.GetOffset(offset);
                     maxCapacity += vehicle.Throughput.GetOffset(offset) * 100 / vehicle.Efficiency.GetOffset(offset);
                 }
-            //_result += __instance.Routes[i].Vehicle.Efficiency.GetQuarterAverage();
         }
-        //__result = _result / __instance.Vehicles;
-        __result = transported * 100 / maxCapacity;
+        __result = maxCapacity > 0 ? transported * 100 / maxCapacity : 0;
         return false;
     }
 

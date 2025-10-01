@@ -5,14 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Patches\CityUI_Patches.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="Patches\CityUI_Patches.cs" />
-  </ItemGroup>
   
   <ItemGroup>
     <PackageReference Include="Lib.Harmony" Version="2.4.1" />
