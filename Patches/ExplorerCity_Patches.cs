@@ -112,20 +112,16 @@ public static class ExplorerCity_Patches
         InsertLabel(4, LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.GetBiggestCrowd()), scene.Engine));
 
         // 5 MODDED fulfillment
-        string fulfillment = StrConversions.Percent(0f);
+        float fulfillment = __instance.City.GetFullfilment();
         Color color = LabelPresets.Color_negative;
         if (__instance.City.GetFullfilment() > 0f) // || __instance.City.GetFullfilmentLastMonth() > 0f)
-            if (__instance.City.GetFullfilment() < 1f) // && __instance.City.GetFullfilmentLastMonth() < 1f)
-            {
-                fulfillment = StrConversions.Percent(__instance.City.GetFullfilment()); // + "  (" + StrConversions.Percent(__instance.City.GetFullfilmentLastMonth()) + ")";
+            if (fulfillment < (float)MainData.Defaults.City_shrink_threshold)
+                color = Color.Yellow;
+            else if (fulfillment < 1f) // && __instance.City.GetFullfilmentLastMonth() < 1f)
                 color = LabelPresets.Color_main;
-            }
             else
-            {
-                fulfillment = StrConversions.Percent(1f);
                 color = LabelPresets.Color_positive;
-            }
-        Label _fulfillment = LabelPresets.GetDefault(fulfillment, scene.Engine);
+        Label _fulfillment = LabelPresets.GetDefault(StrConversions.Percent(fulfillment), scene.Engine);
         _fulfillment.Color = color;
         InsertLabel(5, _fulfillment);
 

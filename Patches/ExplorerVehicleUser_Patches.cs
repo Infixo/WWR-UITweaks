@@ -31,9 +31,30 @@ public static class ExplorerVehicleUser_Patches
             Localization.GetGeneral("capacity"),
             Localization.GetGeneral("efficiency"),
             Localization.GetGeneral("balance"),
-            "<!cicon_fast> <!cicon_fast>",
+            // added
+            "<!cicon_passenger> <!cicon_passenger>", // quarter efficiency
+            "<!cicon_fast> <!cicon_fast>", // quarter throughput
         ];
         return false;
+    }
+
+
+    [HarmonyPatch(typeof(InfoUI), "GetTooltip"), HarmonyPostfix]
+    public static void RouteUI_GetTooltip_Postfix(IControl parent, int category, Session ___Session)
+    {
+        TooltipPreset? _tooltip = null;
+        switch (category)
+        {
+            case 6:
+                _tooltip = TooltipPreset.Get("Quarter Efficiency", ___Session.Scene.Engine);
+                _tooltip.AddDescription("Average efficiency in the last quarter.");
+                break;
+            case 7:
+                _tooltip = TooltipPreset.Get("Quarter Throughput", ___Session.Scene.Engine);
+                _tooltip.AddDescription("Average throughput in the last quarter");
+                break;
+        }
+        _tooltip?.AddToControlBellow(parent);
     }
 
 
@@ -41,7 +62,7 @@ public static class ExplorerVehicleUser_Patches
     public static bool ExplorerVehicleUser_GetMainControl_Prefix(ExplorerVehicleUser __instance, GameScene ___scene,
         ref Button ___main_button, ref Image ___alt, ref Image ___selection, ref Image ___selection_icon)
     {
-        __instance.SetPublicProperty("Labels", new Label[7]);
+        __instance.SetPublicProperty("Labels", new Label[8]);
         int _height = 32;
         ___main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), ___scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: true, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
         ___main_button.Opacity = 0f;
@@ -86,41 +107,53 @@ public static class ExplorerVehicleUser_Patches
                 __instance.GetPrivateField<ExplorerUI<ExplorerVehicleUser>>("explorer").RemoveSelected(__instance);
             }
         };
+        // 0 Name
         Label _name = LabelPresets.GetDefault(__instance.User.GetName(), ___scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_name, 2, 0);
         __instance.Labels[0] = _name;
+        // 1 Company
         Label _company = LabelPresets.GetDefault(__instance.User.Entity_base.Company.Entity.Translated_name, ___scene.Engine);
         _company.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_company, 3, 0);
         __instance.Labels[1] = _company;
+        // 2 Route
         Label _route = LabelPresets.GetDefault(typeof(ExplorerVehicleUser).CallPrivateStaticMethod<string>("GetCurrentRoute", [__instance.User, ___scene]), ___scene.Engine);
         _route.Margin_local = new FloatSpace(MainData.Margin_content);
         IControl _radio = LabelPresets.GetRadio(_route, 400);
         _radio.Mouse_visible = false;
         main_grid.Transfer(_radio, 4, 0);
         __instance.Labels[2] = _route;
+        // 3 Capacity
         Label _capacity = LabelPresets.GetDefault("", ___scene.Engine);
         _capacity.horizontal_alignment = HorizontalAlignment.Center;
         _capacity.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_capacity, 5, 0);
         __instance.Labels[3] = _capacity;
+        // 4 Efficiency
         Label _efficiency = LabelPresets.GetDefault("", ___scene.Engine);
         _efficiency.horizontal_alignment = HorizontalAlignment.Center;
         _efficiency.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_efficiency, 6, 0);
         __instance.Labels[4] = _efficiency;
+        // 5 Balance
         Label _balance = LabelPresets.GetDefault(StrConversions.GetBalanceWithPlus(__instance.User.Balance.GetCurrentMonth(), ___scene.currency), ___scene.Engine);
         _balance.horizontal_alignment = HorizontalAlignment.Right;
         _balance.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_balance, 7, 0);
         __instance.Labels[5] = _balance;
-        // 6 Throughput
-        Label _throughput = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.User.Throughput.GetSumAverage(3)), ___scene.Engine);
+        // 6 Quarter efficiency
+        Label _qEff = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.User.Efficiency.GetQuarterAverage()/100f), ___scene.Engine);
+        _qEff.horizontal_alignment = HorizontalAlignment.Center;
+        _qEff.Margin_local = new FloatSpace(MainData.Margin_content);
+        main_grid.Transfer(_qEff, 8, 0);
+        __instance.Labels[6] = _qEff;
+        // 7 Quarter throughput
+        Label _throughput = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.User.Throughput.GetQuarterAverage()), ___scene.Engine);
         _throughput.horizontal_alignment = HorizontalAlignment.Center;
         _throughput.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_throughput, 8, 0);
-        __instance.Labels[6] = _throughput;
+        main_grid.Transfer(_throughput, 9, 0);
+        __instance.Labels[7] = _throughput;
         return false;
     }
 
@@ -128,7 +161,8 @@ public static class ExplorerVehicleUser_Patches
     [HarmonyPatch("Update"), HarmonyPostfix]
     public static void ExplorerVehicleUser_Update_Postfix(ExplorerVehicleUser __instance, GameScene scene, Company company)
     {
-        __instance.Labels[6].Text = StrConversions.CleanNumber(__instance.User.Throughput.GetSumAverage(3));
+        __instance.Labels[6].Text = StrConversions.Percent((float)__instance.User.Efficiency.GetQuarterAverage()/100f);
+        __instance.Labels[7].Text = StrConversions.CleanNumber(__instance.User.Throughput.GetQuarterAverage());
     }
 
 
@@ -138,10 +172,19 @@ public static class ExplorerVehicleUser_Patches
         ExplorerVehicleUser _item = (ExplorerVehicleUser)item;
         if (__instance.Valid != _item.Valid) return;
 
-        // 6 Throughput
+        // 6 Efficieny
         if (sort_id % __instance.Labels.Length == 6)
         {
-            int result = __instance.User.Throughput.GetSumAverage(3).CompareTo(_item.User.Throughput.GetSumAverage(3));
+            int result = __instance.User.Efficiency.GetQuarterAverage().CompareTo(_item.User.Efficiency.GetQuarterAverage());
+            if (result == 0)
+                result = __instance.User.ID.CompareTo(_item.User.ID);
+            __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
+        }
+    
+        // 7 Throughput
+        if (sort_id % __instance.Labels.Length == 7)
+        {
+            int result = __instance.User.Throughput.GetQuarterAverage().CompareTo(_item.User.Throughput.GetQuarterAverage());
             if (result == 0)
                 result = __instance.User.ID.CompareTo(_item.User.ID);
             __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;

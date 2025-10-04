@@ -1,9 +1,11 @@
 ﻿using HarmonyLib;
+using Microsoft.Xna.Framework.Input;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
+using STM.UI.Explorer;
 using STM.UI.Floating;
 using STM.UI.Stats;
 using STMG.Engine;
@@ -11,6 +13,9 @@ using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
+using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 using Utilities;
 
 namespace UITweaks.Patches;
@@ -19,6 +24,18 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(RouteUI))]
 public static class RouteUI_Patches
 {
+    // Data extensions
+    public class ExtraData
+    {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+        public Label Label_Throughput;
+        public Label Label_Vehicles;
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+    }
+    private static readonly ConditionalWeakTable<RouteUI, ExtraData> _extras = [];
+    public static ExtraData Extra(this RouteUI ui) => _extras.GetOrCreateValue(ui);
+
+
     [HarmonyPatch("Construct"), HarmonyPostfix]
     public static void RouteUI_Construct_Postfix(RouteUI __instance, Panel ___main_panel, int ___height)
     {
@@ -379,8 +396,10 @@ public static class RouteUI_Patches
         Label throughput = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>", __instance.Scene.Engine);
         throughput.Margin_local = new FloatSpace(MainData.Margin_content);
         _grid.Transfer(throughput, 0, 2);
+        __instance.Extra().Label_Throughput = throughput;
 
         // Row1 Vehicles
+        /*
         string typeIcon = "?";
         switch (__instance.Line.Vehicle_type)
         {
@@ -389,10 +408,11 @@ public static class RouteUI_Patches
             case 2: typeIcon = " <!cicon_plane>"; break;
             case 3: typeIcon = " <!cicon_ship>"; break;
         }
-        Label vehicles = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.Vehicles) + typeIcon, __instance.Scene.Engine);
-        vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
-        vehicles.horizontal_alignment = HorizontalAlignment.Right;
-        _grid.Transfer(vehicles, 0, 2);
+        */
+        __instance.Extra().Label_Vehicles = LabelPresets.GetBold("", __instance.Scene.Engine);
+        __instance.Extra().Label_Vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
+        __instance.Extra().Label_Vehicles.horizontal_alignment = HorizontalAlignment.Right;
+        _grid.Transfer(__instance.Extra().Label_Vehicles, 0, 2);
 
         // Row2 Waiting
         Label waiting = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetWaiting())+" <!cicon_passenger>", __instance.Scene.Engine);
@@ -420,6 +440,29 @@ public static class RouteUI_Patches
     }
 
 
+    [HarmonyPatch("Update"), HarmonyPostfix]
+    public static void RouteUI_Update_Postfix(RouteUI __instance)
+    {
+        if (__instance.Main_control.Closing || __instance.Main_control.Ui == null)
+            return;
+        // path arrow updated
+        // company info updated
+        // Balance, efficieny and vehicles updated
+        // Throughput
+        __instance.Extra().Label_Throughput.Text = StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>";
+        // Vehicles
+        string typeIcon = "?";
+        switch (__instance.Line.Vehicle_type)
+        {
+            case 0: typeIcon = " <!cicon_road_vehicle>"; break;
+            case 1: typeIcon = " <!cicon_train>"; break;
+            case 2: typeIcon = " <!cicon_plane>"; break;
+            case 3: typeIcon = " <!cicon_ship>"; break;
+        }
+        __instance.Extra().Label_Vehicles.Text = StrConversions.CleanNumber(__instance.Line.Vehicles) + typeIcon;
+    }
+
+
     // Calculate actual efficieny (it is NOT average of efficiencies!)
     [HarmonyPatch(typeof(Line), "GetQuarterAverageEfficiency"), HarmonyPrefix]
     public static bool Line_GetQuarterAverageEfficiency_Prefix(Line __instance, ref long __result)
@@ -434,12 +477,15 @@ public static class RouteUI_Patches
         for (int i = 0; i < __instance.Routes.Count; i++)
         {
             VehicleBaseUser vehicle = __instance.Routes[i].Vehicle;
-            for (int offset = 0; offset < 3; offset++)
-                if (vehicle.Throughput.Months > offset && vehicle.Efficiency.GetOffset(offset) > 0)
-                {
-                    transported += vehicle.Throughput.GetOffset(offset);
-                    maxCapacity += vehicle.Throughput.GetOffset(offset) * 100 / vehicle.Efficiency.GetOffset(offset);
-                }
+            long throughput = vehicle.Throughput.GetQuarterAverage();
+            long efficiency = vehicle.Efficiency.GetQuarterAverage();
+            if (efficiency > 0)
+            //for (int offset = 0; offset < 3; offset++)
+                //if (vehicle.Throughput.Months > offset && vehicle.Efficiency.GetOffset(offset) > 0)
+            {
+                transported += throughput;
+                maxCapacity += throughput * 100 / efficiency;
+            }
         }
         __result = maxCapacity > 0 ? transported * 100 / maxCapacity : 0;
         return false;
@@ -447,6 +493,7 @@ public static class RouteUI_Patches
 
 
     // Calculate actual quarter (3 months) average
+    /*
     [HarmonyPatch(typeof(Line), "GetQuarterAverageThroughput"), HarmonyPrefix]
     public static bool Line_GetQuarterAverageThroughput_Prefix(Line __instance, ref long __result)
     {
@@ -458,4 +505,5 @@ public static class RouteUI_Patches
         __result = _result;
         return false;
     }
+    */
 }

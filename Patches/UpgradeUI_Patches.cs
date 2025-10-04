@@ -20,13 +20,13 @@ public static class UpgradeUI_Patches
     public static bool UpgradeUI_UpgradeUI_Prefix(UpgradeUI __instance, VehicleBaseUser vehicle, GameScene scene, Action after = null)
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     {
-        ExtensionsHelper.SetPrivateField(__instance, "scene", scene);
-        ExtensionsHelper.SetPrivateField(__instance, "vehicle", vehicle);
-        ExtensionsHelper.SetPrivateField(__instance, "after", after);
+        __instance.SetPrivateField("scene", scene);
+        __instance.SetPrivateField("vehicle", vehicle);
+        __instance.SetPrivateField("after", after);
         TooltipPreset tooltip = TooltipPreset.Get(" <!cicon_upgrade> " + Localization.GetGeneral("replace"), scene.Engine, can_lock: true);
-        ExtensionsHelper.SetPrivateField(__instance, "tooltip", tooltip);
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetOptions", []);
-        if (ExtensionsHelper.GetPrivateField<VehicleBaseEntity>(__instance, "option") == null)
+        __instance.SetPrivateField("tooltip", tooltip);
+        __instance.CallPrivateMethodVoid("GetOptions", []);
+        if (__instance.GetPrivateField<VehicleBaseEntity>("option") == null)
         {
             MainData.Sound_error.Play();
             return false;
@@ -42,7 +42,7 @@ public static class UpgradeUI_Patches
         tooltip.AddContent(buttonUp);
 
         // dropdown list
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetVehicles", []);
+        __instance.CallPrivateMethodVoid("GetVehicles", []);
 
         // down button
         Button buttonDown = ButtonPresets.TextBlack(
@@ -53,11 +53,11 @@ public static class UpgradeUI_Patches
         buttonDown.OnButtonPress += new Action(() => __instance.UpgradeUI_VehiclePrev_Ext());
         tooltip.AddContent(buttonDown);
 
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetIcons", []);
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetStats", []);
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetControls", []);
-        ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetPrice", []);
-        tooltip.Main_control.OnUpdate += new Action(() => UpgradeUI_Update_Reverse(__instance));
+        __instance.CallPrivateMethodVoid("GetIcons", []);
+        __instance.CallPrivateMethodVoid("GetStats", []);
+        __instance.CallPrivateMethodVoid("GetControls", []);
+        __instance.CallPrivateMethodVoid("GetPrice", []);
+        tooltip.Main_control.OnUpdate += new Action(() => __instance.CallPrivateMethodVoid("Update", []));
 
         return false; // skip the original
     }
@@ -78,7 +78,7 @@ public static class UpgradeUI_Patches
         //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
 
         if (filtered.Length > 0)
-            ExtensionsHelper.CallPrivateMethodVoid(ui, "SelectOption", [filtered[0]]);
+            ui.CallPrivateMethodVoid("SelectOption", [filtered[0]]);
         else
             MainData.Sound_error.Play();
     }
@@ -99,17 +99,17 @@ public static class UpgradeUI_Patches
         //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
 
         if (filtered.Length > 0)
-            ExtensionsHelper.CallPrivateMethodVoid(ui, "SelectOption", [filtered[0]]);
+            ui.CallPrivateMethodVoid("SelectOption", [filtered[0]]);
         else
             MainData.Sound_error.Play();
     }
 
-
+    /*
     [HarmonyPatch("Update"), HarmonyReversePatch]
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static void UpgradeUI_Update_Reverse(UpgradeUI __instance) =>
         throw new NotImplementedException("ERROR. UpgradeUI_Update_Reverse");
-
+    */
 
     // this method fills up available vehicles; all fields are private in this class
     [HarmonyPatch("GetVehiclesOptions"), HarmonyPrefix]
@@ -132,13 +132,14 @@ public static class UpgradeUI_Patches
             _items.Add(new SimpleDropdownItem(i, vehicle));
         }
         // magic here, to pass Func<int> we must go through lambda, same for Action<>
-        __result = new DropdownSettings(get_current: () => UpgradeUI_GetCurrent_Reverse(__instance), items: _items, on_select: (item) => UpgradeUI_OnVehicleSelect_Reverse(__instance, item));
+        //__result = new DropdownSettings(get_current: () => UpgradeUI_GetCurrent_Reverse(__instance), items: _items, on_select: (item) => UpgradeUI_OnVehicleSelect_Reverse(__instance, item));
+        __result = new DropdownSettings(get_current: () => __instance.CallPrivateMethod<int>("GetCurrent", []), items: _items, on_select: (item) => __instance.CallPrivateMethodVoid("OnVehicleSelect", [item])); 
         __result.content = grid;
-        ExtensionsHelper.SetPrivateField(__instance, "dropdown", __result);
+        __instance.SetPrivateField("dropdown", __result);
 
         return false; // skip original
     }
-    
+    /*
     [HarmonyPatch("GetCurrent"), HarmonyReversePatch]
     [MethodImpl(MethodImplOptions.NoInlining)]
     public static int UpgradeUI_GetCurrent_Reverse(UpgradeUI __instance) =>
@@ -150,4 +151,5 @@ public static class UpgradeUI_Patches
     public static void UpgradeUI_OnVehicleSelect_Reverse(UpgradeUI __instance, SimpleDropdownItem item) =>
         // its a stub so it has no initial content
         throw new NotImplementedException("ERROR. UpgradeUI_OnVehicleSelect_Reverse");
+    */
 }

@@ -31,7 +31,7 @@ public static class ExplorerVehicleEntity_Patches
         main_button.OnMouseStillTime += (Action)delegate
         {
             //ExplorerVehicleEntity_GetTooltip_Reverse(__instance, scene);
-            ExtensionsHelper.CallPrivateMethodVoid(__instance, "GetTooltip", [scene]);
+            __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
         };
 
         Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
