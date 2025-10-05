@@ -1,8 +1,10 @@
 ﻿using HarmonyLib;
+using Microsoft.VisualBasic.FileIO;
 using Microsoft.Xna.Framework.Input;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
+using STM.GameWorld.Commands;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
@@ -152,8 +154,9 @@ public static class RouteUI_Patches
             return false;
         }
 
-        // Upgrade
-        Button _upgrade = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_upgrade, __instance.Scene.Engine).Control;
+        // Upgrade / replace with any
+        Button _upgrade = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_replace, __instance.Scene.Engine).Control;
+        _upgrade.Enabled = vehicle.Company == __instance.Scene.Session.Player;
         _grid.Transfer(_upgrade, 4, 0);
         _upgrade.OnButtonPress += (Action)delegate
         {
@@ -176,8 +179,9 @@ public static class RouteUI_Patches
             //Duplicate(_duplicate, vehicle);
         };
 
-        // Delete / Sell
-        Button _sell = ButtonPresets.IconClose(ContentRectangle.Stretched, MainData.Icon_trash, __instance.Scene.Engine).Control;
+        // Upgrade to the next in chain
+        Button _sell = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_upgrade, __instance.Scene.Engine).Control;
+        _sell.Enabled = vehicle.Company == __instance.Scene.Session.Player;
         _grid.Transfer(_sell, 8, 0);
         _sell.OnMouseStillTime += (Action)delegate
         {
@@ -185,13 +189,27 @@ public static class RouteUI_Patches
         };
         _sell.OnButtonPress += (Action)delegate
         {
-            ConfirmUI.Get(Localization.GetVehicle("sell_vehicle").Replace("{vehicle}", vehicle.GetName()), null, delegate
+            VehicleBaseEntity? entity = null;
+            VehicleCompanyEntity vehicleCompany = vehicle.Entity_base.Company.Entity;
+            for (int i = 0; i < vehicleCompany.Vehicles.Count; i++)
             {
-            }, delegate
+                if (vehicleCompany.Vehicles[i].Price > vehicle.Entity_base.Price && vehicleCompany.Vehicles[i].CanBuy(__instance.Scene.Session.GetPlayer(), vehicle.Hub.Longitude))
+                {
+                    entity = vehicleCompany.Vehicles[i];
+                    break;
+                }
+            }
+            if (entity != null)
             {
-                BaseVehicleUI.SellVehicle(vehicle, __instance.Scene);
-            }, __instance.Scene.Engine, null, null, -(long)((decimal)vehicle.GetValue() * __instance.Scene.Session.GetPriceAdjust()));
+                vehicle.UpgradeWith(entity, __instance.Scene);
+                __instance.Main_control.Ui?.RemoveNestedControlsByParent(_sell);
+            }
+            else
+                MainData.Sound_error.Play();
         };
+
+        //foreach (VehicleBaseEntity item in filtered)
+        //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
 
         // Select
         ButtonItem _select = ButtonPresets.IconBlack(ContentRectangle.Stretched, MainData.Icon_toggle_off, __instance.Scene.Engine);
@@ -399,16 +417,6 @@ public static class RouteUI_Patches
         __instance.Extra().Label_Throughput = throughput;
 
         // Row1 Vehicles
-        /*
-        string typeIcon = "?";
-        switch (__instance.Line.Vehicle_type)
-        {
-            case 0: typeIcon = " <!cicon_road_vehicle>"; break;
-            case 1: typeIcon = " <!cicon_train>"; break;
-            case 2: typeIcon = " <!cicon_plane>"; break;
-            case 3: typeIcon = " <!cicon_ship>"; break;
-        }
-        */
         __instance.Extra().Label_Vehicles = LabelPresets.GetBold("", __instance.Scene.Engine);
         __instance.Extra().Label_Vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
         __instance.Extra().Label_Vehicles.horizontal_alignment = HorizontalAlignment.Right;
@@ -429,7 +437,6 @@ public static class RouteUI_Patches
         // Balance graph
         IControl _graph = ChartLine.GetSingle(new GraphSettings(step => __instance.CallPrivateMethod<long>("GetValue", [step]), 12, -1L, -1L, 2L)
         {
-            //update_tooltip = UpdateGraphTooltip
             // lamba magic here!
             update_tooltip = (tooltip, settings, id) => __instance.CallPrivateMethodVoid("UpdateGraphTooltip", [tooltip, settings, id])
         }, fill: true, __instance.Company.GetGridColor());
@@ -506,4 +513,41 @@ public static class RouteUI_Patches
         return false;
     }
     */
+
+
+    public static void UpgradeWith(this VehicleBaseUser vehicle, VehicleBaseEntity entity, GameScene scene)
+    {
+        Company _company = scene.Session.GetPlayer();
+        if (!_company.Cheats && _company.GetInventory(entity, scene.Cities[vehicle.Hub.City].GetCountry(scene), scene) == 0)
+        {
+            VehicleBaseUser.GetDuplicateError(scene);
+            MainData.Sound_error.Play();
+            return;
+        }
+        long _price = entity.GetPrice(scene, _company, scene.Cities[vehicle.Hub.City].User); // buy new
+        _price -= (long)((decimal)vehicle.GetValue() * scene.Session.GetPriceAdjust()); // sell old
+        if (vehicle.Hub.Full())
+        {
+            _price += vehicle.Hub.GetNextLevelPrice(scene.Session);
+        }
+        if (!_company.Cheats && _company.Wealth < _price)
+        {
+            ConfirmUI.Get(Localization.GetInfrastructure("no_money"), null, null, delegate
+            {
+            }, scene.Engine, null, null, _price);
+            MainData.Sound_error.Play();
+            return;
+        }
+        // schedule commands
+        if (vehicle.Hub.Full())
+        {
+            scene.Session.Commands.Add(new CommandUpgradeHub(_company.ID, vehicle.Hub.City));
+        }
+        scene.Session.Commands.Add(new CommandSell(vehicle));
+        NewRouteSettings _settings = new NewRouteSettings(vehicle);
+        _settings.SetVehicleEntity(entity);
+        CommandNewRoute _command = new CommandNewRoute(scene.Session.Player, _settings, open: true);
+        scene.Session.Commands.Add(_command);
+        MainData.Sound_buy.Play();
+    }
 }
