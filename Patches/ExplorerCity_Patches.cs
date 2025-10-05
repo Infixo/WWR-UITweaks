@@ -16,6 +16,24 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerCity))]
 public static class ExplorerCity_Patches
 {
+    [HarmonyPatch(typeof(InfoUI), "OpenCities"), HarmonyPrefix]
+    public static bool InfoUI_OpenCities_Prefix(InfoUI __instance, IControl parent)
+    {
+        ExplorerUI<ExplorerCity> explorerUI = new ExplorerUI<ExplorerCity>(
+            __instance.CallPrivateMethod<string[]>("GetCitiesCategories", []),
+            (item) => __instance.CallPrivateMethodVoid("OnCitySelect", [item]),
+            null,
+            parent.Ui,
+            __instance.GetPrivateField<Session>("Session").Scene,
+            1,
+            "ve_cities",
+            (parent,id) => __instance.CallPrivateMethodVoid("GetCityTooltip", [parent,id]),
+            GetCitiesFilterCategories());
+        explorerUI.AddItems(() => __instance.CallPrivateMethod< GrowArray<ExplorerCity>>("GetCities", []));
+        explorerUI.AddToControlBellow(parent);
+        return false;
+    }
+
 
     [HarmonyPatch(typeof(InfoUI), "GetCitiesCategories"), HarmonyPrefix]
     public static bool InfoUI_GetCitiesCategories_Prefix(ref string[] __result)
@@ -33,6 +51,37 @@ public static class ExplorerCity_Patches
             "<!cicon_city>", // 7 Buildings Localization.GetInfrastructure("infrastructure"),
         ];
         return false; // skip original
+    }
+
+
+    public static FilterCategory[] GetCitiesFilterCategories()
+    {
+        // Buildings
+        FilterCategoryItem[] buildings = new FilterCategoryItem[MainData.Buildings.Length + 1];
+        buildings[0] = new FilterCategoryItem("- Reverse -");
+        for (int i = 0; i < MainData.Buildings.Length; i++)
+        {
+            buildings[i+1] = new FilterCategoryItem(MainData.Buildings[i].Translated_name);
+        }
+
+        // type: price, values, percent, list, list_sort
+        FilterCategory[] _result =
+        [
+            // categories: Hub, Port, Resort, Connected, Important, Blocked
+            new FilterCategory(
+                "Features", "list", // name + type
+                new FilterCategoryItem("- Reverse -"),
+                new FilterCategoryItem(Localization.GetCompany("hub")),
+                new FilterCategoryItem("Connected"),
+                new FilterCategoryItem("Important"),
+                new FilterCategoryItem("Port"),
+                new FilterCategoryItem("Resort"),
+                new FilterCategoryItem("Overcrowded")),
+            // buildings
+            new FilterCategory(
+                Localization.GetInfrastructure("infrastructure"), "list", buildings),
+        ];
+        return _result;
     }
 
 
@@ -257,7 +306,56 @@ public static class ExplorerCity_Patches
             return;
         }
     }
+    
 
+    [HarmonyPatch("Matches"), HarmonyPrefix]
+    public static bool ExplorerCity_Matches_Prefix(ExplorerCity __instance, ref bool __result, FilterCategory[] categories, GameScene scene, Company company, CityUser city)
+    {
+        ushort player = scene.Session.Player;
+        Hub _hub = __instance.City.GetHub(player);
+
+        // Categories
+        bool result0 = true;
+        bool itemsSelected = false;
+        for (int i = 1; i < categories[0].Items.Length; i++)
+            itemsSelected |= categories[0].Items[i].Selected;
+        if (itemsSelected)
+        {
+            if (categories[0].Items[1].Selected)
+                result0 &= _hub != null;
+            if (categories[0].Items[2].Selected)
+                result0 &= __instance.City.Routes.Count > 0;
+            if (categories[0].Items[3].Selected)
+                result0 &= __instance.City.Important;
+            if (categories[0].Items[4].Selected)
+                result0 &= __instance.City.Sea != null;
+            if (categories[0].Items[5].Selected)
+                result0 &= __instance.City.City.Resort;
+            if (categories[0].Items[6].Selected)
+                result0 &= (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100;
+            if (categories[0].Items[0].Selected)
+                result0 = !result0;
+        }
+
+        // Infrastructure
+        bool result1 = true;
+        itemsSelected = false;
+        for (int i = 1; i < categories[1].Items.Length; i++)
+            itemsSelected |= categories[1].Items[i].Selected;
+        if (itemsSelected)
+        {
+            for (int i = 0; i < MainData.Buildings.Length; i++)
+            {
+                if (categories[1].Items[i+1].Selected)
+                    result1 &= (_hub != null) && _hub.HasBuilding(MainData.Buildings[i]);
+            }
+            if (categories[1].Items[0].Selected)
+                result1 = !result1;
+        }
+
+        __result = result0 & result1;
+        return false;
+    }
 
     /*
     [HarmonyPatch("SetSizes"), HarmonyPostfix]
