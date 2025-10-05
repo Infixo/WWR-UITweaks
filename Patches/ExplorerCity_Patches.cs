@@ -1,14 +1,15 @@
-﻿using System.Runtime.CompilerServices;
-using HarmonyLib;
-using Utilities;
+﻿using HarmonyLib;
 using Microsoft.Xna.Framework;
 using STM.Data;
+using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
+using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -107,7 +108,6 @@ public static class ExplorerCity_Patches
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            //ExplorerCity_GetTooltip_Reverse(__instance, scene);
             __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
         };
 
@@ -133,10 +133,11 @@ public static class ExplorerCity_Patches
         }
 
         // 0 name
-        Label _name = LabelPresets.GetDefault(__instance.City.Name, scene.Engine);
-        //_name.Margin_local = new FloatSpace(MainData.Margin_content);
-        //main_grid.Transfer(_name, 0, 0);
-        //__instance.Labels[0] = _name;
+        string text = __instance.City.City.Capital ? "<!cicon_train_b> " : (__instance.City.Important ? "<!cicon_plane_b> " : "<!cicon_ship_b> ");
+        text += __instance.City.Name;
+        if (__instance.City.Sea != null) text += "  P"; // port
+        if (__instance.City.City.Resort) text += "  R"; // resort
+        Label _name = LabelPresets.GetDefault(text, scene.Engine);
         InsertLabel(0, _name, HorizontalAlignment.Left);
 
         // 1 country
@@ -146,9 +147,7 @@ public static class ExplorerCity_Patches
         InsertLabel(1, _country, HorizontalAlignment.Left);
 
         // 2 level
-        ushort player = scene.Session.Player;
-        Hub? hub = __instance.City.GetHub(player);
-        string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level);
+        string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level) + (__instance.City.Routes.Count > 0 ? " <!cicon_locate>" : "");
         Label _level = LabelPresets.GetDefault(level, scene.Engine);
         InsertLabel(2, _level);
 
@@ -175,11 +174,13 @@ public static class ExplorerCity_Patches
         InsertLabel(5, _fulfillment);
 
         // 6 MODDED company_trust
+        ushort player = scene.Session.Player;
         Label _trust = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.City.Trust.GetPercent(player)), scene.Engine);
         if (__instance.City.Trust.Dominated == player) _trust.Color = LabelPresets.Color_positive;
         InsertLabel(6, _trust);
 
         // 7 MODDED infrastructure
+        Hub? hub = __instance.City.GetHub(player);
         Label _infra = LabelPresets.GetDefault("", scene.Engine);
         if (hub != null)
         {
@@ -226,13 +227,6 @@ public static class ExplorerCity_Patches
         Dictionary<CityUser, int> travellers = city.GetAllPassengers();
         return travellers.Count > 0 ? travellers.Values.Max() : 0;
     }
-
-
-    [HarmonyPatch("GetTooltip"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void ExplorerCity_GetTooltip_Reverse(ExplorerCity __instance, GameScene scene) =>
-        throw new NotImplementedException("ERROR. ExplorerCity_GetTooltip_Reverse");
-
 
     [HarmonyPatch("Smaller"), HarmonyPostfix]
     public static void ExplorerCity_Smaller_Postfix(ExplorerCity __instance, IExplorerItem item, int sort_id, ref bool __result)
@@ -354,6 +348,39 @@ public static class ExplorerCity_Patches
         }
 
         __result = result0 & result1;
+        return false;
+    }
+
+
+    [HarmonyPatch("FillCategories"), HarmonyPrefix]
+    public static bool ExplorerCity_FillCategories_Prefix(ExplorerCity __instance, FilterCategory[] categories)
+    {
+        GameScene scene = (GameScene)GameEngine.Last.Main_scene;
+        ushort player = scene.Session.Player;
+        Hub _hub = __instance.City.GetHub(player);
+
+        bool matches = false;
+        _ = ExplorerCity_Matches_Prefix(__instance, ref matches, categories, scene, scene.Session.GetPlayer(), __instance.City);
+
+        // Helper
+        bool reverse0 = categories[0].Items[0].Selected;
+        void IncreaseCount(int group, int index, bool flag)
+        {
+            if (matches && (flag ^ reverse0))
+                categories[group].Items[index].IncreaseCount();
+        }
+
+        // Categories
+        IncreaseCount(0, 1, _hub != null);
+        IncreaseCount(0, 2, __instance.City.Routes.Count > 0);
+        IncreaseCount(0, 3, __instance.City.Important);
+        IncreaseCount(0, 4, __instance.City.Sea != null);
+        IncreaseCount(0, 5, __instance.City.City.Resort);
+        IncreaseCount(0, 6, (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100);
+
+        for (int i = 0; i < MainData.Buildings.Length; i++)
+            IncreaseCount(1, i+1, (_hub != null) && _hub.HasBuilding(MainData.Buildings[i]));
+
         return false;
     }
 
