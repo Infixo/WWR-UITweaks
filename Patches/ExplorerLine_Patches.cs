@@ -21,7 +21,7 @@ public static class ExplorerLine_Patches
     public class ExtraData
     {
         public double Distance;
-        public int Throughput;
+        public long Throughput;
         public long Waiting;
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
@@ -35,8 +35,8 @@ public static class ExplorerLine_Patches
         [
         Localization.GetGeneral("name"), // 0
         Localization.GetVehicle("route"), // 1
-        "<!cicon_road_vehicle><!cicon_train><!cicon_plane><!cicon_ship>", //Localization.GetInfrastructure("vehicles"), // 2
-        Localization.GetGeneral("efficiency"), // 3
+        Localization.GetInfrastructure("vehicles"), // 2 <!cicon_road_vehicle><!cicon_train><!cicon_plane><!cicon_ship>"
+        Localization.GetGeneral("efficiency"), // 3 current month
         Localization.GetGeneral("balance"), // 4
         // added
         "<!cicon_city>", // 5 num cities
@@ -79,22 +79,48 @@ public static class ExplorerLine_Patches
     }
 
 
-    [HarmonyPatch(typeof(InfoUI), "GetRouteTooltip"), HarmonyPostfix]
-    public static void RouteUI_GetRouteTooltip_Postfix(IControl parent, int id, Session ___Session)
+    [HarmonyPatch(typeof(InfoUI), "GetRouteTooltip"), HarmonyPrefix]
+    public static bool RouteUI_GetRouteTooltip_Prefix(IControl parent, int id, Session ___Session)
     {
         TooltipPreset? _tooltip = null;
         switch (id)
         {
-            case 7:
-                _tooltip = TooltipPreset.Get("Throughput", ___Session.Scene.Engine);
-                _tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
+            case 0:
+            case 1:
+                _tooltip = GeneralTooltips.GetRoute(___Session.Scene.Engine);
                 break;
-            case 8:
-                _tooltip = TooltipPreset.Get("Waiting", ___Session.Scene.Engine);
+            case 2:
+                _tooltip = GeneralTooltips.GetVehicles(___Session.Scene.Engine);
+                break;
+            case 3: // Efficiency
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("efficiency"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("Current month efficiency.");
+                break;
+            case 4: // Balance
+                _tooltip = GeneralTooltips.GetBalance(___Session.Scene.Engine);
+                _tooltip.AddSeparator();
+                _tooltip.AddDescription(Localization.GetInfo("balance_quarter"));
+                break;
+            case 5: // Cities 
+                _tooltip = TooltipPreset.Get(Localization.GetCity("cities"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("Number of cities.");
+                break;
+            case 6: // Length
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("distance"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("Total distance.");
+                break;
+            case 7: // Throughput
+                _tooltip = TooltipPreset.Get("Throughput", ___Session.Scene.Engine);
+                //_tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
+                _tooltip.AddDescription("Average quarter throughput.");
+                break;
+            case 8: // Waiting
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("passengers"), ___Session.Scene.Engine);
                 _tooltip.AddDescription("Passengers wanting to use the line. Passengers waiting to use another line are excluded.");
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
+        return false;
     }
 
 
@@ -190,14 +216,14 @@ public static class ExplorerLine_Patches
         __instance.Extra().Distance = __instance.Line.GetTotalDistance();
         InsertLabelAt(6, StrConversions.GetDistance(__instance.Extra().Distance));
 
-        // 7 Estimated vehicles throughput
-        __instance.Extra().Throughput = __instance.Line.EstimateThroughput();
-        if (__instance.Line.Instructions.Cities.Length > 2)
-            InsertLabelAt(7, $"{StrConversions.CleanNumber(__instance.Extra().Throughput)} .. {StrConversions.CleanNumber(__instance.Extra().Throughput * (__instance.Line.Instructions.Cities.Length-1))}");
-        else
-            InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
+        // 7 Quarter average throughput
+        __instance.Extra().Throughput = __instance.Line.GetQuarterAverageThroughput(); // EstimateThroughput();
+        //if (__instance.Line.Instructions.Cities.Length > 2)
+            //InsertLabelAt(7, $"{StrConversions.CleanNumber(__instance.Extra().Throughput)} .. {StrConversions.CleanNumber(__instance.Extra().Throughput * (__instance.Line.Instructions.Cities.Length-1))}");
+        //else
+        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
-        // 8 Estimated through needed to transport currently waiting passangers within a month
+        // 8 Waiting passengers
         __instance.Extra().Waiting = __instance.Line.GetWaiting();
         InsertLabelAt(8, StrConversions.CleanNumber(__instance.Extra().Waiting));
 

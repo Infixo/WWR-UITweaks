@@ -133,7 +133,7 @@ public static class ExplorerCity_Patches
         }
 
         // 0 name
-        string text = __instance.City.City.Capital ? "<!cicon_train_b> " : (__instance.City.Important ? "<!cicon_plane_b> " : "<!cicon_ship_b> ");
+        string text = __instance.City.City.Capital ? "<!cicon_country> " : (__instance.City.Important ? "<!cicon_plane_b> " : "<!cicon_ship_b> ");
         text += __instance.City.Name;
         if (__instance.City.Sea != null) text += "  P"; // port
         if (__instance.City.City.Resort) text += "  R"; // resort
@@ -232,51 +232,36 @@ public static class ExplorerCity_Patches
     public static void ExplorerCity_Smaller_Postfix(ExplorerCity __instance, IExplorerItem item, int sort_id, ref bool __result)
     {
         ExplorerCity _item = (ExplorerCity)item;
-        if (__instance.Valid != _item.Valid) return; // this case was completed in the original
+        if (__instance.Valid != _item.Valid) return; 
+        if (sort_id % __instance.Labels.Length < 3) return; // this case was completed in the original
+
+        int result = 0;
 
         // 3 indirect capacity
         if (sort_id % __instance.Labels.Length == 3)
         {
             float ratioThis = (float)__instance.City.GetTotalIndirect() / (float)__instance.City.GetMaxIndirect();
             float ratioItem = (float)_item.City.GetTotalIndirect() / (float)_item.City.GetMaxIndirect();
-            if (sort_id < __instance.Labels.Length)
-                __result = ratioThis > ratioItem;
-            else
-                __result = ratioThis < ratioItem;
-            return;
+            result = ratioThis.CompareTo(ratioItem);
         }
 
         // biggest crowd
         if (sort_id % __instance.Labels.Length == 4)
         {
-            if (sort_id < __instance.Labels.Length)
-                __result = __instance.City.GetBiggestCrowd() > _item.City.GetBiggestCrowd();
-            else
-                __result = __instance.City.GetBiggestCrowd() < _item.City.GetBiggestCrowd();
-            return;
+            result = __instance.City.GetBiggestCrowd().CompareTo(_item.City.GetBiggestCrowd());
         }
 
         // 5 fulfillment
         if (sort_id % __instance.Labels.Length == 5)
         {
-            float ratioThis = (float)__instance.City.GetTotalIndirect() / (float)__instance.City.GetMaxIndirect();
-            float ratioItem = (float)_item.City.GetTotalIndirect() / (float)_item.City.GetMaxIndirect();
-            if (sort_id < __instance.Labels.Length)
-                __result = __instance.City.GetFullfilment() > _item.City.GetFullfilment();
-            else
-                __result = __instance.City.GetFullfilment() < _item.City.GetFullfilment();
-            return;
+            result = __instance.City.GetFullfilment().CompareTo(_item.City.GetFullfilment());
         }
 
         // 6 trust
         if (sort_id % __instance.Labels.Length == 6)
         {
-            ushort player = 0; // TODO - how to get player ID here? scene.Session.Player;
-            if (sort_id < __instance.Labels.Length)
-                __result = __instance.City.Trust.GetPercent(player) > _item.City.Trust.GetPercent(player);
-            else
-                __result = __instance.City.Trust.GetPercent(player) < _item.City.Trust.GetPercent(player);
-            return;
+            ushort player = ((GameScene)GameEngine.Last.Main_scene).Session.Player;
+            result = __instance.City.Trust.GetPercent(player).CompareTo(_item.City.Trust.GetPercent(player));
         }
 
         // 7 buildings
@@ -292,13 +277,14 @@ public static class ExplorerCity_Patches
                 return sum;
             }
 
-            ushort player = 0; // TODO - how to get player ID here? scene.Session.Player;
-            if (sort_id < __instance.Labels.Length)
-                __result = CountBuildings(__instance.City, player) > CountBuildings(_item.City, player);
-            else
-                __result = CountBuildings(__instance.City, player) < CountBuildings(_item.City, player);
-            return;
+            ushort player = ((GameScene)GameEngine.Last.Main_scene).Session.Player;
+            result = CountBuildings(__instance.City, player).CompareTo(CountBuildings(_item.City, player));
         }
+
+        if (result == 0)
+            result = __instance.City.Name.CompareTo(_item.City.Name);
+
+        __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
     }
     
 
