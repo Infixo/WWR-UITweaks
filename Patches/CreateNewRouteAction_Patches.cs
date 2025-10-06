@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Utilities;
 using STM.Data;
 using STM.GameWorld;
@@ -48,9 +47,9 @@ public static class CreateNewRouteAction_Patches
                 history,
                 delegate (IControl p, int c) // Action<IControl, int> tooltip
                 {
-                    CreateNewRouteAction_GetTooltip_Reverse(p, c, scene);
+                    (typeof(CreateNewRouteAction)).CallPrivateStaticMethodVoid("GetTooltip", [p, c, scene]);
                 },
-                CreateNewRouteAction_GetFilterCategories_Reverse(scene));
+                (typeof(CreateNewRouteAction)).CallPrivateStaticMethod<FilterCategory[]>("GetFilterCategories", [scene]));
 
             // -------------
 #pragma warning disable CS8604 // Possible null reference argument.
@@ -117,41 +116,4 @@ public static class CreateNewRouteAction_Patches
 
         return false; // skip original
     }
-
-
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-
-    [HarmonyPatch("GetTooltip"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void CreateNewRouteAction_GetTooltip_Reverse(IControl parent, int category, GameScene scene) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetTooltip_Reverse");
-
-    [HarmonyPatch("GetFilterCategories"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static FilterCategory[] CreateNewRouteAction_GetFilterCategories_Reverse(GameScene scene) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetFilterCategories_Reverse");
-
-    [HarmonyPatch("GetRoadVehicles"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static GrowArray<ExplorerVehicleEntity> CreateNewRouteAction_GetRoadVehicles_Reverse(NewRouteSettings route, GameScene scene, long price_adjust, VehicleBaseUser[] replace = null) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetRoadVehicles_Reverse");
-
-    [HarmonyPatch("GetTrains"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-
-    public static GrowArray<ExplorerVehicleEntity> CreateNewRouteAction_GetTrains_Reverse(NewRouteSettings route, GameScene scene, long price_adjust, VehicleBaseUser[] replace = null) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetTrains_Reverse");
-
-    [HarmonyPatch("GetPlanes"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static GrowArray<ExplorerVehicleEntity> CreateNewRouteAction_GetPlanes_Reverse(NewRouteSettings route, GameScene scene, long price_adjust, VehicleBaseUser[] replace = null) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetPlanes_Reverse");
-
-    [HarmonyPatch("GetShips"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static GrowArray<ExplorerVehicleEntity> CreateNewRouteAction_GetShips_Reverse(NewRouteSettings route, GameScene scene, long price_adjust, VehicleBaseUser[] replace = null) =>
-        throw new NotImplementedException("ERROR. CreateNewRouteAction_GetShips_Reverse");
-
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
-
 }

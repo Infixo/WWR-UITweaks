@@ -168,17 +168,6 @@ public static class CityWorldGraphics_Patches
         return false; // skip the original
     }
 
-    /*
-    public static Color OvercrowdedColor(CityUser city, Color defColor)
-    {
-        int ratio = city.GetTotalIndirect() * 100 / city.GetMaxIndirect();
-        if (ratio > 150) return Color.DarkRed;
-        else if (ratio > 100) return Color.Red;
-        else if (ratio > 75) return Color.DarkOrange;
-        else if (ratio > 50) return Color.Yellow;
-        return defColor;
-    }
-    */
 
     public static void DebugColors()
     {

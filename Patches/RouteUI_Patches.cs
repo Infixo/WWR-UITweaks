@@ -1,6 +1,4 @@
 ﻿using HarmonyLib;
-using Microsoft.VisualBasic.FileIO;
-using Microsoft.Xna.Framework.Input;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -15,8 +13,6 @@ using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
-using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 using Utilities;
 
@@ -499,22 +495,6 @@ public static class RouteUI_Patches
     }
 
 
-    // Calculate actual quarter (3 months) average
-    /*
-    [HarmonyPatch(typeof(Line), "GetQuarterAverageThroughput"), HarmonyPrefix]
-    public static bool Line_GetQuarterAverageThroughput_Prefix(Line __instance, ref long __result)
-    {
-        long _result = 0L;
-        for (int i = 0; i < __instance.Routes.Count; i++)
-        {
-            _result += __instance.Routes[i].Vehicle.Throughput.GetSumAverage(3);
-        }
-        __result = _result;
-        return false;
-    }
-    */
-
-
     public static void UpgradeWith(this VehicleBaseUser vehicle, VehicleBaseEntity entity, GameScene scene)
     {
         Company _company = scene.Session.GetPlayer();
@@ -545,6 +525,7 @@ public static class RouteUI_Patches
         }
         scene.Session.Commands.Add(new CommandSell(vehicle));
         NewRouteSettings _settings = new NewRouteSettings(vehicle);
+        _settings.upgrade = new UpgradeSettings(vehicle, scene);
         _settings.SetVehicleEntity(entity);
         CommandNewRoute _command = new CommandNewRoute(scene.Session.Player, _settings, open: true);
         scene.Session.Commands.Add(_command);

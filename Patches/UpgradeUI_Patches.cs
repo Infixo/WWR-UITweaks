@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Utilities;
 using STM.Data;
 using STM.Data.Entities;
@@ -104,12 +103,6 @@ public static class UpgradeUI_Patches
             MainData.Sound_error.Play();
     }
 
-    /*
-    [HarmonyPatch("Update"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void UpgradeUI_Update_Reverse(UpgradeUI __instance) =>
-        throw new NotImplementedException("ERROR. UpgradeUI_Update_Reverse");
-    */
 
     // this method fills up available vehicles; all fields are private in this class
     [HarmonyPatch("GetVehiclesOptions"), HarmonyPrefix]
@@ -139,17 +132,4 @@ public static class UpgradeUI_Patches
 
         return false; // skip original
     }
-    /*
-    [HarmonyPatch("GetCurrent"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static int UpgradeUI_GetCurrent_Reverse(UpgradeUI __instance) =>
-        // its a stub so it has no initial content
-        throw new NotImplementedException("ERROR. UpgradeUI_GetCurrent_Reverse");
-    
-    [HarmonyPatch("OnVehicleSelect", [typeof(SimpleDropdownItem )]), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void UpgradeUI_OnVehicleSelect_Reverse(UpgradeUI __instance, SimpleDropdownItem item) =>
-        // its a stub so it has no initial content
-        throw new NotImplementedException("ERROR. UpgradeUI_OnVehicleSelect_Reverse");
-    */
 }

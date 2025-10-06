@@ -23,6 +23,7 @@ public static class ExplorerLine_Patches
         public double Distance;
         public long Throughput;
         public long Waiting;
+        public string Country = "";
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerLine line) => _extras.GetOrCreateValue(line);
@@ -181,7 +182,9 @@ public static class ExplorerLine_Patches
         __instance.Labels[0] = _name;
 
         // 1 Route
-        Label _route = LabelPresets.GetDefault(__instance.CallPrivateMethod<string>("GetCurrentRoute", [scene]), scene.Engine);
+        var (countryTxt, routeTxt) = __instance.GetCurrentRouteEx(scene);
+        __instance.Extra().Country = countryTxt;
+        Label _route = LabelPresets.GetDefault(routeTxt, scene.Engine);
         _route.Margin_local = new FloatSpace(MainData.Margin_content);
         IControl _radio = LabelPresets.GetRadio(_route, 400);
         _radio.Mouse_visible = false;
@@ -218,9 +221,6 @@ public static class ExplorerLine_Patches
 
         // 7 Quarter average throughput
         __instance.Extra().Throughput = __instance.Line.GetQuarterAverageThroughput(); // EstimateThroughput();
-        //if (__instance.Line.Instructions.Cities.Length > 2)
-            //InsertLabelAt(7, $"{StrConversions.CleanNumber(__instance.Extra().Throughput)} .. {StrConversions.CleanNumber(__instance.Extra().Throughput * (__instance.Line.Instructions.Cities.Length-1))}");
-        //else
         InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
         // 8 Waiting passengers
@@ -312,26 +312,71 @@ public static class ExplorerLine_Patches
         return line.Vehicles * (int)(averageCapacity * numTrips);
     }
 
-    
-    [HarmonyPatch("Smaller"), HarmonyPostfix]
-    public static void ExplorerLine_Smaller_Postfix(ExplorerLine __instance, ref bool __result, IExplorerItem item, int sort_id)
+
+    // The modded version adds and store country name, so lines can be sorted and filtered by country also
+    public static (string,string) GetCurrentRouteEx(this ExplorerLine line, GameScene scene)
+    {
+        Dictionary<byte, int> countries = []; // Key=country id, Value=occurences
+        string _text = "";
+        for (int i = 0; i < line.Line.Instructions.Cities.Length; i++)
+        {
+            if (i > 0)
+            {
+                _text += " <!cicon_right> ";
+            }
+            _text += line.Line.Instructions.Cities[i].GetNameWithIcon(scene);
+            byte country_id = line.Line.Instructions.Cities[i].City.Country_id;
+            countries.TryAdd(country_id, 0);
+            countries[country_id]++;
+        }
+
+        // decide which country it is
+        byte lineCountry = line.Line.Instructions.Cities[0].City.Country_id;
+        var maxPair = countries.Aggregate((l, r) => l.Value > r.Value ? l : r);
+        if (maxPair.Value > countries[lineCountry])
+            lineCountry = maxPair.Key;
+
+        // append country name and return both
+        string countryName = scene.Countries[lineCountry].Name.GetTranslation(Localization.Language);
+        _text = countryName + ":  " + _text;
+        return (countryName, _text);
+    }
+
+
+    [HarmonyPatch("Smaller"), HarmonyPrefix]
+    public static bool ExplorerLine_Smaller_Prefix(ExplorerLine __instance, ref bool __result, IExplorerItem item, int sort_id)
     {
         ExplorerLine _item = (ExplorerLine)item;
         if (__instance.Valid != _item.Valid)
         {
-            return;
+            __result = __instance.Valid.CompareTo(_item.Valid) > 0;
+            return false;
         }
 
-        int sortColumn = sort_id % __instance.Labels.Length;
         int result = 0; // temporary comparison, for normal order result<0, for reversed order resut>0
         switch (sort_id % __instance.Labels.Length) // sort column
         {
             case 0:
+                if (__instance.Line.Has_name && _item.Line.Has_name)
+                    result = __instance.Labels[0].Text.CompareTo(_item.Labels[0].Text);
+                break;
+
             case 1:
-            case 2:
-            case 3:
-            case 4: // original function
-                return;
+                //result = __instance.Labels[1].Text.CompareTo(_item.Labels[1].Text);
+                result = __instance.Extra().Country.CompareTo(_item.Extra().Country);
+                break;
+
+            case 2: // num vehicles
+                result = __instance.Line.Vehicles - _item.Line.Vehicles;
+                break;
+
+            case 3: // current month efficieny
+                result = __instance.GetPrivateField<float>("efficiency").CompareTo(_item.GetPrivateField<float>("efficiency"));
+                break;
+
+            case 4: // balance
+                result = __instance.GetPrivateField<long>("balance").CompareTo(_item.GetPrivateField<long>("balance"));
+                break;
 
             case 5: // num cities
                 result = __instance.Line.Instructions.Cities.Length.CompareTo(_item.Line.Instructions.Cities.Length);
@@ -352,9 +397,11 @@ public static class ExplorerLine_Patches
 
         // fallback for sorting - by ID
         if (result == 0)
-            __instance.Line.ID.CompareTo(_item.Line.ID);
+            result = __instance.Line.ID.CompareTo(_item.Line.ID);
 
         // Normal order: sortid < length, Reverse order: sortid >= length; default is descending
         __result = (sort_id < __instance.Labels.Length) ? result > 0 : result < 0;
+
+        return false;
     }
 }

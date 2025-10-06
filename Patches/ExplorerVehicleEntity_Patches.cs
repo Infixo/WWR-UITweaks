@@ -1,5 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Utilities;
 using STM.Data;
 using STM.Data.Entities;
@@ -30,7 +29,6 @@ public static class ExplorerVehicleEntity_Patches
         main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         main_button.OnMouseStillTime += (Action)delegate
         {
-            //ExplorerVehicleEntity_GetTooltip_Reverse(__instance, scene);
             __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
         };
 
@@ -151,12 +149,6 @@ public static class ExplorerVehicleEntity_Patches
 
         return false; // skip the original
     }
-
-
-    [HarmonyPatch("GetTooltip"), HarmonyReversePatch]
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void ExplorerVehicleEntity_GetTooltip_Reverse(ExplorerVehicleEntity __instance, GameScene scene) =>
-        throw new NotImplementedException("ERROR. ExplorerCity_GetTooltip_Reverse");
 
 
     /// <summary>

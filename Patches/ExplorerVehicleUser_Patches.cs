@@ -7,11 +7,6 @@ using STM.UI.Explorer;
 using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Utilities;
 
 namespace UITweaks.Patches;
