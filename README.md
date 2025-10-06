@@ -8,9 +8,14 @@
 
 ### Explorers (new columns)
 - Countries. Average city level, how many cities are not connected to any lines.
-- Cities. Indirect capacity, biggest crowd, fulfillment, trust, buildings.
-- Lines. Num of cities, total length, theoretical throughput, waiting passengers.
+- Cities.
+  - Indirect capacity, biggest crowd, fulfillment, trust, buildings.
+  - (0.2) Filters and counters for city features and buildings.
+- Lines.
+  - Num of cities, total length, theoretical throughput, waiting passengers.
+  - (0.2) Search by Country.
 - Vehicle types. Minimum passengers, estimated profit, monthly throughput on a 1000km line, range for planes.
+- (0.2) Vehicles. Quarter efficieny and throughput.
 
 ### Floating windows
 - RouteUI.
@@ -18,6 +23,7 @@
   - Waiting passengers in each city and on the entire line.
   - City names are colores based on indirect capacity usage.
   - Quarterly efficieny is calculated using weighted average on their capacity.
+  - (0.2) One-click upgrade to the next in chain.
 - UpgradeUI. More info in the vehicle selection drop-down. Quick next/prev from the same company buttons.
 - CityUI. Travellers toolip shows lines at the top (no more scrolling!) and indirect connections are sorted by number of people.
 - CountryUI.
@@ -37,6 +43,10 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.2.0 (2025-10-06)
+  - One-click upgrade.
+  - Filters and counters in the city explorer.
+  - Search by country in the lines view.
 - v0.1.0 (2025-10-02)
   - Initial release.
 
