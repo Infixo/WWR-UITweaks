@@ -4,7 +4,6 @@ using STM.Data.Entities;
 using STM.GameWorld;
 using STM.UI;
 using STM.UI.Explorer;
-using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
@@ -75,7 +74,7 @@ public static class ExplorerHubs_Patches
 
         // 1 Name
         string name = __instance.City.GetNameWithIcon(scene);
-        name += $" <!#{(LabelPresets.Color_main * 0.85f).GetHex()}>({__instance.City.City.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
+        name += $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({__instance.City.City.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
         Label _name = LabelPresets.GetDefault(name, scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_name, 0, 0);
@@ -103,7 +102,7 @@ public static class ExplorerHubs_Patches
         __instance.Labels[3] = _vehicles;
 
         // 4 Goal
-        Label _goal = LabelPresets.GetDefault(__instance.CallPrivateMethod<string>("GetGoal", []), scene.Engine);
+        Label _goal = LabelPresets.GetBold(__instance.GetGoalEx(), scene.Engine);
         _goal.Margin_local = new FloatSpace(MainData.Margin_content);
         _goal.horizontal_alignment = HorizontalAlignment.Center;
         main_grid.Transfer(_goal, 4, 0);
@@ -117,11 +116,12 @@ public static class ExplorerHubs_Patches
         __instance.Labels[5] = _balance;
 
         // 6 Budget
+        HubManager manager = __instance.Hub.Manager;
         string budget = "-";
         __instance.Extra().Budget = -2;
-        if (__instance.Hub.Manager != null)
+        if ( manager != null)
         {
-            __instance.Extra().Budget = __instance.Hub.Manager.budget == 0 ? -1 : (((long)scene.currency.InCurrency(__instance.Hub.Manager.budget))+500000L)/1000000L;
+            __instance.Extra().Budget = manager.budget == 0 ? -1 : (((long)scene.currency.InCurrency(manager.budget))+500000L)/1000000L;
             budget = __instance.Extra().Budget >= 0 ? StrConversions.CleanNumber(__instance.Extra().Budget) + "M" : Localization.GetGeneral("auto");
         }
         Label _budget = LabelPresets.GetDefault(budget, scene.Engine);
@@ -132,12 +132,22 @@ public static class ExplorerHubs_Patches
 
         // 7 Brands
         string brands = "-";
-        if (__instance.Hub.Manager != null && __instance.Hub.Manager.brands != null)
+        if (manager != null)
         {
-            brands = string.Join(" ",
-                MainData.Vehicle_companies
-                .Where(item => __instance.Hub.Manager.brands.Contains((ushort)item.ID))
-                .Select(item => WorldwideRushExtensions.GetVehicleTypeIcon(item.Vehicles[0].Type_name) + item.Translated_name[..2]));
+            brands = ""; 
+            if (manager.buy_road_vehicles) brands += "<!cicon_road_vehicle>";
+            if (manager.buy_trains) brands += "<!cicon_train>";
+            if (manager.buy_planes) brands += "<!cicon_plane>";
+            if (manager.buy_ships) brands += "<!cicon_ship>";
+            // Vehicle companies
+            if (manager.brands != null)
+            {
+                brands += "  ";
+                brands += string.Join(" ",
+                    MainData.Vehicle_companies
+                    .Where(item => __instance.Hub.Manager.brands.Contains((ushort)item.ID))
+                    .Select(item => /*WorldwideRushExtensions.GetVehicleTypeIcon(item.Vehicles[0].Type_name) +*/ item.Translated_name[..2]));
+            }
         }
 
         Label _brands = LabelPresets.GetDefault(brands, scene.Engine);
@@ -158,6 +168,18 @@ public static class ExplorerHubs_Patches
         sizes[7] = 200;
     }
     */
+
+    public static string GetGoalEx(this ExplorerHubs hub)
+    {
+        HubManager manager = hub.Hub.Manager;
+        if (manager == null) return "-";
+        // goal
+        string goal = manager.Only_manage ? "M " : "E ";
+        if (manager.buy_roads) goal += "<!cicon_road_vehicle>";
+        if (manager.buy_rails) goal += "<!cicon_train>";
+        return goal;
+    }
+
 
     public static decimal InCurrency(this CurrencyEntity entity, decimal number)
     {
@@ -190,5 +212,20 @@ public static class ExplorerHubs_Patches
                 result = __instance.City.Name.CompareTo(_item.City.Name);
             __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
         }
+    }
+
+
+    [HarmonyPatch("Update"), HarmonyPrefix]
+    public static bool ExplorerHubs_Update_Prefix(ExplorerHubs __instance, GameScene scene, Company company, ref long ___balance, PathArrow ___path)
+    {
+        ___path?.Update(scene.UI.Frame_time, scene);
+        int _current = __instance.City.GetTotalIndirect();
+        int _total = __instance.City.GetMaxIndirect();
+        __instance.Labels[2].Text = StrConversions.OutOf(_current, _total);
+        __instance.Labels[2].Color = __instance.City.OvercrowdedColor(LabelPresets.Color_main);
+        ___balance = __instance.Hub.GetQuarterAverage();
+        __instance.Labels[5].Text = StrConversions.GetBalanceWithPlus(___balance, scene.currency);
+        __instance.Labels[5].Color = ((___balance >= 0) ? LabelPresets.Color_positive : LabelPresets.Color_negative);
+        return false;
     }
 }

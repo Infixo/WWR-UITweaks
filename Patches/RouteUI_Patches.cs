@@ -341,7 +341,10 @@ public static class RouteUI_Patches
         _grid.Transfer(_id, 0, 0);
 
         // 1 Name + overcrowded color
-        Label _city_label = LabelPresets.GetBold(_city.GetNameWithIcon(__instance.Scene), __instance.Scene.Engine);
+        string name = _city.GetNameWithIcon(__instance.Scene);
+        ushort player = __instance.Scene.Session.Player;
+        if (_city.GetHub(player) != null) name += " <!cicon_storage>";
+        Label _city_label = LabelPresets.GetBold(name, __instance.Scene.Engine);
         _city_label.Color = _city.OvercrowdedColor(LabelPresets.Color_main);
         _grid.Transfer(_city_label, 1, 0);
 
