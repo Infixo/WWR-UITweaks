@@ -119,7 +119,7 @@ public static class RouteUI_Patches
         };
 
         // Name
-        Label _name = LabelPresets.GetDefault(vehicle.GetName(), __instance.Scene.Engine);
+        Label _name = LabelPresets.GetDefault(vehicle.GetName() + (vehicle.Route.Moving ? " <!cicon_right>" : ""), __instance.Scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         _content.Transfer(_name);
 
