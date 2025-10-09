@@ -17,6 +17,7 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerCity))]
 public static class ExplorerCity_Patches
 {
+    // Patch necessary to hook filters
     [HarmonyPatch(typeof(InfoUI), "OpenCities"), HarmonyPrefix]
     public static bool InfoUI_OpenCities_Prefix(InfoUI __instance, IControl parent)
     {
@@ -52,6 +53,41 @@ public static class ExplorerCity_Patches
             "<!cicon_city>", // 7 Buildings Localization.GetInfrastructure("infrastructure"),
         ];
         return false; // skip original
+    }
+
+
+    [HarmonyPatch(typeof(InfoUI), "GetCityTooltip"), HarmonyPrefix]
+    public static bool InfoUI_GetCityTooltip_Prefix(IControl parent, int id, Session ___Session)
+    {
+        TooltipPreset _tooltip = null;
+        switch (id)
+        {
+            case 0:
+                _tooltip = GeneralTooltips.GetCity(___Session.Scene.Engine);
+                break;
+            case 2:
+                _tooltip = TooltipPreset.Get(Localization.GetCity("level"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("<!cicon_up> City will grow.");
+                _tooltip.AddDescription("<!cicon_down> City will shrink.");
+                _tooltip.AddDescription("<!cicon_star> City level.");
+                _tooltip.AddDescription("<!cicon_locate> City has routes.");
+                break;
+            //case 3:
+                //_tooltip = TooltipPreset.Get(Localization.GetGeneral("capacity"), ___Session.Scene.Engine);
+                //break;
+            //case 4:
+                //_tooltip = TooltipPreset.Get("Biggest crowd", ___Session.Scene.Engine);
+                //_tooltip.AddDescription("Number of cities.");
+                //break;
+            case 5:
+                _tooltip = TooltipPreset.Get(Localization.GetCity("fulfillment"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("Number of destinations that are not fulfilled thus preventing the city growth.");
+                break;
+            //case 6: // trust
+            //case 7:
+        }
+        _tooltip?.AddToControlBellow(parent);
+        return false;
     }
 
 
@@ -147,7 +183,13 @@ public static class ExplorerCity_Patches
         InsertLabel(1, _country, HorizontalAlignment.Left);
 
         // 2 level
-        string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level) + (__instance.City.Routes.Count > 0 ? " <!cicon_locate>" : "");
+        string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level);
+        if (__instance.City.Destinations.CanGrow())
+            level = "<!cicon_up> " + level;
+        else if (__instance.City.Destinations.CanShrink(__instance.City))
+            level = "<!cicon_down> " + level;
+        if (__instance.City.Routes.Count > 0)
+            level += "  <!cicon_locate>";
         Label _level = LabelPresets.GetDefault(level, scene.Engine);
         InsertLabel(2, _level);
 
@@ -160,6 +202,7 @@ public static class ExplorerCity_Patches
         InsertLabel(4, LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.GetBiggestCrowd()), scene.Engine));
 
         // 5 MODDED fulfillment
+        /*
         float fulfillment = __instance.City.GetFullfilment();
         Color color = LabelPresets.Color_negative;
         if (__instance.City.GetFullfilment() > 0f) // || __instance.City.GetFullfilmentLastMonth() > 0f)
@@ -169,8 +212,9 @@ public static class ExplorerCity_Patches
                 color = LabelPresets.Color_main;
             else
                 color = LabelPresets.Color_positive;
-        Label _fulfillment = LabelPresets.GetDefault(StrConversions.Percent(fulfillment), scene.Engine);
-        _fulfillment.Color = color;
+        */
+        Label _fulfillment = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.Destinations.CountBadDestinations()), scene.Engine);
+        //_fulfillment.Color = color;
         InsertLabel(5, _fulfillment);
 
         // 6 MODDED company_trust
@@ -221,12 +265,24 @@ public static class ExplorerCity_Patches
     }
 
 
+    // Extension to count how many destinations cannot grow thus preventing city growth
+    public static int CountBadDestinations(this CityDestinationCollection destinations)
+    {
+        int cantGrow = 0;
+        for (int i = 0; i < destinations.Items.Count; i++)
+            if (!destinations.Items[i].Can_grow)
+                cantGrow++;
+        return cantGrow;
+    }
+
+
     // Extension to get the "biggest crowd" - a destination with the higherst number of travellers
     public static int GetBiggestCrowd(this CityUser city)
     {
         Dictionary<CityUser, int> travellers = city.GetAllPassengers();
         return travellers.Count > 0 ? travellers.Values.Max() : 0;
     }
+
 
     [HarmonyPatch("Smaller"), HarmonyPostfix]
     public static void ExplorerCity_Smaller_Postfix(ExplorerCity __instance, IExplorerItem item, int sort_id, ref bool __result)
@@ -254,7 +310,7 @@ public static class ExplorerCity_Patches
         // 5 fulfillment
         if (sort_id % __instance.Labels.Length == 5)
         {
-            result = __instance.City.GetFullfilment().CompareTo(_item.City.GetFullfilment());
+            result = __instance.City.Destinations.CountBadDestinations().CompareTo(_item.City.Destinations.CountBadDestinations());
         }
 
         // 6 trust
