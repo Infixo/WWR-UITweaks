@@ -180,7 +180,13 @@ public static class ExplorerCity_Patches
         Country _c = __instance.City.City.GetCountry(scene);
         string country = _c.Name.GetTranslation(Localization.Language);
         Label _country = LabelPresets.GetDefault("<!cicon_" + _c.ISO3166_1 + ":28> " + country, scene.Engine);
-        InsertLabel(1, _country, HorizontalAlignment.Left);
+        _country.Margin_local = new FloatSpace(MainData.Margin_content);
+        _country.horizontal_alignment = HorizontalAlignment.Left;
+        //InsertLabel(1, _country, HorizontalAlignment.Left);
+        IControl _radio = LabelPresets.GetRadio(_country, 300);
+        _radio.Mouse_visible = false;
+        main_grid.Transfer(_radio, 1, 0);
+        __instance.Labels[1] = _country;
 
         // 2 level
         string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level);
@@ -426,16 +432,11 @@ public static class ExplorerCity_Patches
         return false;
     }
 
-    /*
-    [HarmonyPatch("SetSizes"), HarmonyPostfix]
-    public static void ExplorerCity_SetSizes_Postfix(ExplorerCity __instance, int[] sizes)
+    
+    [HarmonyPatch("GetSizes"), HarmonyPostfix]
+    public static void ExplorerCity_GetSizes_Postfix(int[] sizes)
     {
-        //string line = "";
-        //foreach (int size in sizes) line += " " + size;
-        //Log.Write(line);
-        Grid _main_grid = ExtensionsHelper.GetPrivateField<Grid>(__instance, "main_grid");
-        _main_grid.SetColumn(0, SizeType.Pixels, sizes[0]*80/100);
-        _main_grid.SetColumn(1, SizeType.Pixels, sizes[1]*60/100);
+        sizes[0] = 320; // name
+        sizes[1] = 300; // country
     }
-    */
 }

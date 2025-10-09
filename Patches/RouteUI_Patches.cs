@@ -285,10 +285,19 @@ public static class RouteUI_Patches
         return false;
     }
 
+    public static Dictionary<ushort, int> Hubs = []; // cities with hubs for this line
 
     //[HarmonyPatch("PopulateRoute"), HarmonyPrefix]
     public static bool RouteUI_PopulateRoute_Prefix(this RouteUI __instance, ControlCollection route)
     {
+        // collect hub cities
+        Hubs = [];
+        for (int i = 0; i < __instance.Line.Routes.Count; i++)
+        {
+            VehicleBaseUser veh = __instance.Line.Routes[i].Vehicle;
+            Hubs.TryAdd(veh.Hub.City, 0);
+            Hubs[veh.Hub.City]++;
+        }
         //RouteCycle _cycle = default(RouteCycle);
         float _y = 0f;
         for (int i = 0; i< __instance.Line.Instructions.Cities.Length; i++)
@@ -301,6 +310,7 @@ public static class RouteUI_Patches
         //}
         return false;
     }
+
 
     //[HarmonyPatch("GetRouteControl"), HarmonyPrefix]
     public static bool RouteUI_GetRouteControl_Prefix(this RouteUI __instance, ControlCollection route, int index, ref float y)
@@ -343,7 +353,7 @@ public static class RouteUI_Patches
         // 1 Name + overcrowded color
         string name = _city.GetNameWithIcon(__instance.Scene);
         ushort player = __instance.Scene.Session.Player;
-        if (_city.GetHub(player) != null) name += " <!cicon_storage>";
+        if (_city.GetHub(player) != null && Hubs.ContainsKey(_city.GetHub(player).City)) name += " <!cicon_storage>";
         Label _city_label = LabelPresets.GetBold(name, __instance.Scene.Engine);
         _city_label.Color = _city.OvercrowdedColor(LabelPresets.Color_main);
         _grid.Transfer(_city_label, 1, 0);
