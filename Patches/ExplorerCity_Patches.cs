@@ -59,7 +59,7 @@ public static class ExplorerCity_Patches
     [HarmonyPatch(typeof(InfoUI), "GetCityTooltip"), HarmonyPrefix]
     public static bool InfoUI_GetCityTooltip_Prefix(IControl parent, int id, Session ___Session)
     {
-        TooltipPreset _tooltip = null;
+        TooltipPreset? _tooltip = null;
         switch (id)
         {
             case 0:

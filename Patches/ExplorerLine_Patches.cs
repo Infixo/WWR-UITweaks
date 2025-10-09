@@ -5,6 +5,7 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
+using STM.UI.Floating;
 using STMG.UI.Control;
 using STVisual.Utility;
 using System.Diagnostics;
@@ -42,7 +43,7 @@ public static class ExplorerLine_Patches
         // added
         "<!cicon_city>", // 5 num cities
         "<!cicon_left>  <!cicon_right>", // 6 length
-        "<!cicon_fast>", // 7
+        "<!cicon_fast>", // 7 throughput
         "<!cicon_passenger>", // 8
         ];
         return false;
@@ -198,6 +199,20 @@ public static class ExplorerLine_Patches
         main_grid.Transfer(_vehicles, 2, 0);
         __instance.Labels[2] = _vehicles;
 
+        // check if there are >1 hubs
+        Dictionary<ushort, int> hubs = [];
+        for (int i = 0; i < __instance.Line.Routes.Count; i++)
+        {
+            VehicleBaseUser veh = __instance.Line.Routes[i].Vehicle;
+            hubs.TryAdd(veh.Hub.City, 0);
+            hubs[veh.Hub.City]++;
+        }
+        if (hubs.Count > 1)
+        {
+            __instance.Labels[2].Text += $"  <!cicon_storage>{hubs.Count}";
+            __instance.Labels[2].Color = LabelPresets.Color_negative;
+        }
+
         // 3 Efficiency
         Label _efficiency = LabelPresets.GetDefault("100%", scene.Engine);
         _efficiency.Margin_local = new FloatSpace(MainData.Margin_content);
@@ -228,44 +243,6 @@ public static class ExplorerLine_Patches
         InsertLabelAt(8, StrConversions.CleanNumber(__instance.Extra().Waiting));
 
         return false;
-    }
-
-
-    public static double GetTotalDistance(this Line line)
-    {
-        // Calculate total distance, for cyclic routes adds last-first section
-        // Distance between cities is not stored, it is calculated when needed :(
-        CityUser[] cities = line.Instructions.Cities; // for readability
-        if (cities.Length < 2)
-        {
-            return 0.0; //  there is no route yet
-        }
-
-        static double GetDistance(CityUser a, CityUser b, byte vehicle_type)
-        {
-            // TODO: this could be cached later on to speed up the calculations
-            switch (vehicle_type)
-            {
-                case 0: return RoadPathSearch.GetRoute(a, b).Distance;
-                case 1: return RoadPathSearch.GetRails(a, b).Distance;
-                case 2: return GameScene.GetDistance(a, b);
-                case 3: return SeaPathSearch.GetRoute(a, b).Distance;
-            }
-            return 0d;
-        }
-
-        double distance = 0.0;
-        for (int i = 1; i < cities.Length; i++)
-        {
-            double _dist = GetDistance(cities[i - 1], cities[i], line.Vehicle_type);
-            distance += _dist;
-        }
-        if (line.Instructions.Cyclic)
-        {
-            double _dist = GetDistance(cities[^1], cities[0], line.Vehicle_type);
-            distance += _dist;
-        }
-        return distance;
     }
 
 
