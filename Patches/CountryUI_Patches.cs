@@ -34,33 +34,33 @@ public static class CountryUI_Patches
         CompanyUI.AddStats(_grid, 5, Localization.GetCity("country_trust"), () => __instance.CallPrivateMethod<string>("GetTrust", []), __instance.Scene); // 3 => 4
 
         // Vehicle companies with the lowest import tax
-        var Road = FindBestVehicleCompany(__instance.Country.GetCapital(0).User, "road_vehicle", __instance.Scene);
-        var Train = FindBestVehicleCompany(__instance.Country.GetCapital(0).User, "train", __instance.Scene);
-        CompanyUI.AddStats(_grid, 6, "<!cicon_road_vehicle>" + Road.Item2, () => StrConversions.PercentChange((float)Road.Item1), __instance.Scene);
-        CompanyUI.AddStats(_grid, 7, "<!cicon_train>" + Train.Item2, () => StrConversions.PercentChange((float)Train.Item1), __instance.Scene);
+        var Road = GetBestVehicleCompany(__instance.Country, "road_vehicle", __instance.Scene);
+        var Train = GetBestVehicleCompany(__instance.Country, "train", __instance.Scene);
+        CompanyUI.AddStats(_grid, 6, "<!cicon_road_vehicle>" + Road.Item3, () => StrConversions.PercentChange((float)Road.Item2), __instance.Scene);
+        CompanyUI.AddStats(_grid, 7, "<!cicon_train>" + Train.Item3, () => StrConversions.PercentChange((float)Train.Item2), __instance.Scene);
 
         return false; // skip the original
     }
 
 
     /// <summary>
-    /// Iterates through vehicle entity companies and finds the lowest import tax for a given  <paramref name="city"/>.
-    /// <paramref name="type_name"></paramref> Either train  or road_vehicle.
+    /// Iterates through vehicle entity companies and finds the lowest import tax for a given  <paramref name="country"/>.
+    /// <paramref name="type_name"></paramref> Either train or road_vehicle.
     /// </summary>
-    public static (decimal, string) FindBestVehicleCompany(this CityUser city, string type_name, GameScene scene)
+    public static (VehicleCompanyEntity, decimal, string) GetBestVehicleCompany(this Country country, string type_name, GameScene scene)
     {
-        Country country = city.City.GetCountry(scene);
+        //Country country = city.City.GetCountry(scene);
         //Log.Write($"{city.Name} {country.Name}");
 
         // iterate through companies and calculate import tax
-        var items = new List<(decimal Tax, string Name)>();
+        var items = new List<(VehicleCompanyEntity VCE, decimal Tax, string Name)>();
         foreach (VehicleCompanyEntity vce in MainData.Vehicle_companies.Where(x => x.Vehicles.Last.Type_name == type_name))
         {
             //Log.Write($"{vce.ID} {vce.Translated_name} {vce.Vehicles.Last.Type_name} {vce.Country.Item.ISO3166_1} reg={vce.Region.X}");
-            Country company = vce.Country.Item;
-            decimal distance = VehicleBaseEntity.GetHorizontalDistance(country.Location, company.Location) / 100m;
+            Country companyCountry = vce.Country.Item;
+            decimal distance = VehicleBaseEntity.GetHorizontalDistance(country.Location, companyCountry.Location) / 100m;
             decimal taxDistance = ((decimal)(int)(distance * 20m) / 20m * MainData.Defaults.Vehicles_import);
-            items.Add((taxDistance, $"{vce.Translated_name} ({company.Name.GetTranslation(Localization.Language)})"));
+            items.Add((vce, taxDistance, $"{vce.Translated_name} ({companyCountry.Name.GetTranslation(Localization.Language)})"));
             //Log.Write($" ... {company.Name} dist={distance} tax={taxDistance}");
         }
 
