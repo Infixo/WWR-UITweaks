@@ -5,7 +5,6 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
-using STM.UI.Floating;
 using STMG.UI.Control;
 using STVisual.Utility;
 using System.Diagnostics;
@@ -23,8 +22,9 @@ public static class ExplorerLine_Patches
     {
         public double Distance;
         public long Throughput;
-        public long Waiting;
+        public long Waiting = -1L;
         public string Country = "";
+        public bool Active = true;
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerLine line) => _extras.GetOrCreateValue(line);
@@ -56,6 +56,7 @@ public static class ExplorerLine_Patches
         __result[0].Items[0].SetValue(0); // show empty lines
     }
 
+    /*
     // Simple stopwatch and counters to measure ExplorerLine performance
     public static Stopwatch sw = new();
 
@@ -79,6 +80,7 @@ public static class ExplorerLine_Patches
         Log.Write($"Elapsed time: {sw.ElapsedMilliseconds} ms, IC={WorldwideRushExtensions.CounterIsConn} GP={WorldwideRushExtensions.CounterGetPath}");
         Log.Write($"Counters: 0= {WorldwideRushExtensions.CounterGetLine0} 1={WorldwideRushExtensions.CounterGetLine1} 2={WorldwideRushExtensions.CounterGetLine2} 3={WorldwideRushExtensions.CounterGetLine3} ");
     }
+    */
 
 
     [HarmonyPatch(typeof(InfoUI), "GetRouteTooltip"), HarmonyPrefix]
@@ -142,11 +144,6 @@ public static class ExplorerLine_Patches
         ___main_button.OnMouseStillTime += (Action)delegate
         {
             __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
-            // test
-            //TooltipPreset tt = TooltipPreset.Get("Debug", scene.Engine, can_lock: true);
-            //tt.AddDescription("test");
-            //tt.AddDescription("TEST TEST");
-            //tt.AddToControlBellow(butTemp);
         };
 
         ___alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
@@ -239,12 +236,29 @@ public static class ExplorerLine_Patches
         InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
         // 8 Waiting passengers
-        __instance.Extra().Waiting = __instance.Line.GetWaiting();
-        InsertLabelAt(8, StrConversions.CleanNumber(__instance.Extra().Waiting));
+        //__instance.Extra().Waiting = __instance.Line.GetWaiting();
+        InsertLabelAt(8, "~"); //  StrConversions.CleanNumber(__instance.Extra().Waiting));
 
         return false;
     }
 
+
+    [HarmonyPatch("Matches"), HarmonyPostfix]
+    public static void ExplorerLine_Matches_Postfix(ExplorerLine __instance, bool __result, FilterCategory[] categories, GameScene scene, Company company, CityUser city)
+    {
+        __instance.Extra().Active = __result;
+    }
+     
+
+    [HarmonyPatch("Update"), HarmonyPostfix]
+    public static void ExlorerLine_Update_Postfix(ExplorerLine __instance, GameScene scene, Company company)
+    {
+        if (!__instance.Extra().Active || __instance.Extra().Waiting != -1L) return;
+        __instance.Extra().Waiting = __instance.Line.GetWaiting();
+        __instance.Labels[8].Text = StrConversions.CleanNumber(__instance.Extra().Waiting);
+        //Log.Write($"{scene.Session.Frame&0xFFFF:X4} {__instance.Line.ID:D4}");
+    }
+    
 
     public static int EstimateThroughput(this Line line)
     {

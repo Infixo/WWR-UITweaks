@@ -11,11 +11,14 @@
 - Cities.
   - Indirect capacity, biggest crowd, fulfillment, trust, buildings.
   - (0.2) Filters and counters for city features and buildings.
+  - (0.3) Number of unfulfilled destinations.
 - Lines.
   - Num of cities, total length, theoretical throughput, waiting passengers.
   - (0.2) Search by Country.
+  - (0.3) Mark lines that have >1 hub.
 - Vehicle types. Minimum passengers, estimated profit, monthly throughput on a 1000km line, range for planes.
 - (0.2) Vehicles. Quarter efficieny and throughput.
+- (0.3) Hubs. Shows budget and brands info.
 
 ### Floating windows
 - RouteUI.
@@ -29,6 +32,8 @@
 - CountryUI.
   - Info about: not connected cities, average city level, best vehicle providers.
   - In cities list, there is a mark if the city is connected to any lines.
+- HubUI.
+  - (0.3) Hire manager specific for a country of currently used vehicles. 
 
 ### Troubleshooting
 - Output messages are logged into UITweaksLog.txt in the %TEMP% dir.
@@ -43,6 +48,10 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.3.0 (2025-10-10)
+  - Budget and brands in hubs explorer.
+  - More enhancements in cities and lines explorer.
+  - HubUI hire specific manager.
 - v0.2.0 (2025-10-06)
   - One-click upgrade.
   - Filters and counters in the city explorer.
