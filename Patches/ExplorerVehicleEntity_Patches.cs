@@ -71,7 +71,7 @@ public static class ExplorerVehicleEntity_Patches
 
         // 2 Capacity
         //string _scapacity = ((!(__instance.Entity is TrainEntity _train)) ? StrConversions.CleanNumber(__instance.Entity.Capacity) : StrConversions.OutOf(__instance.Entity.Capacity, _train.Max_capacity));
-        int capacity = ExtensionsHelper.GetPrivateField<int>(__instance, "capacity"); // we need it 2x
+        int capacity = __instance.GetPrivateField<int>("capacity"); // we need it 2x
         Label _capacity = LabelPresets.GetDefault(StrConversions.CleanNumber(capacity), scene.Engine);
         InsertLabel(2, _capacity);
 
@@ -80,7 +80,7 @@ public static class ExplorerVehicleEntity_Patches
         InsertLabel(3, _minPass);
 
         // 4 min%
-        Label _minPerc = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.Entity.Real_min_passengers / (float)capacity), scene.Engine);
+        Label _minPerc = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.Entity.Real_min_passengers * 100 / capacity) + "%", scene.Engine);
         InsertLabel(4, _minPerc);
 
         // 3 Speed => 5
