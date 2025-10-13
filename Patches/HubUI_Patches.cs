@@ -1,6 +1,8 @@
 ﻿using HarmonyLib;
 using STM.Data;
+using STM.Data.Entities;
 using STM.GameWorld;
+using STM.GameWorld.AI;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Floating;
@@ -159,5 +161,43 @@ public static class HubUI_Patches
         long _price = MainData.Defaults.Hub_manager_price;
         tooltipPreset.AddPrice(_price, hubui.Scene.currency);
         tooltipPreset.AddToControlAuto(parent);
+    }
+
+
+    [HarmonyPatch("GetBrandsTooltip"), HarmonyPrefix]
+    public static bool HubUI_GetBrandsTooltip_Prefix(HubUI __instance, IControl parent)
+    {
+        TooltipPreset tooltipPreset = TooltipPreset.Get(Localization.GetCompany("manager_targets"), __instance.Scene.Engine);
+        tooltipPreset.AddDescription(Localization.GetInfo("manager_targets"));
+        // Generated plans
+        tooltipPreset.AddSeparator();
+        GrowArray<GeneratedPlan> generated = __instance.Hub.Manager.GetPrivateField<GrowArray<GeneratedPlan>>("generated");
+        if (generated.Count > 0)
+        {
+            tooltipPreset.AddBoldLabel("Generated plans");
+            for (int i = 0; i < generated.Count; i++)
+                tooltipPreset.AddStatsLine($"{i}. {DecodeVehicle(generated[i].Settings.vehicle)} ({generated[i].age}m, {generated[i].Weight:F2})", StrConversions.GetBalance(generated[i].Price, __instance.Scene.currency));
+        }
+        else
+            tooltipPreset.AddBoldLabel("No plans");
+        // Attach
+        tooltipPreset.AddToControlBellow(parent);
+        return false;
+
+        // Local helper
+        string DecodeVehicle(int coded)
+        {
+            try
+            {
+                if (coded > 3000000) return "<!cicon_train>" + MainData.Trains[coded - 3000000].Translated_name;
+                if (coded > 2000000) return "<!cicon_ship>" + MainData.Ships[coded - 2000000].Translated_name;
+                if (coded > 1000000) return "<!cicon_road_vehicle>" + MainData.Road_vehicles[coded - 1000000].Translated_name;
+                return "<!cicon_plane>" + MainData.Planes[coded].Translated_name;
+            }
+            catch
+            {
+                return "(error)"; // just a precaution for index of bounds
+            }
+        }
     }
 }

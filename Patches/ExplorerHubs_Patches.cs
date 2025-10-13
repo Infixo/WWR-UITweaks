@@ -2,6 +2,7 @@
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
+using STM.GameWorld.AI;
 using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
@@ -95,11 +96,22 @@ public static class ExplorerHubs_Patches
         __instance.Labels[2] = _indirect;
 
         // 3 Vehicles
+        HubManager manager = __instance.Hub.Manager;
         Label _vehicles = LabelPresets.GetDefault(StrConversions.OutOf(__instance.Hub.Vehicles.Count, __instance.Hub.Level * MainData.Defaults.Hub_max_vehicles), scene.Engine);
         _vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
         _vehicles.horizontal_alignment = HorizontalAlignment.Center;
         main_grid.Transfer(_vehicles, 3, 0);
         __instance.Labels[3] = _vehicles;
+
+        if (manager != null)
+        {
+            int numGenPlans = manager.GetPrivateField<GrowArray<GeneratedPlan>>("generated").Count;
+            if (numGenPlans > 0)
+            {
+                _vehicles.Text += $"  [{StrConversions.CleanNumberWithPlus(numGenPlans)}]";
+                _vehicles.Color = LabelPresets.Color_positive;
+            }
+        }
 
         // 4 Goal
         Label _goal = LabelPresets.GetBold(__instance.GetGoalEx(), scene.Engine);
@@ -116,7 +128,6 @@ public static class ExplorerHubs_Patches
         __instance.Labels[5] = _balance;
 
         // 6 Budget
-        HubManager manager = __instance.Hub.Manager;
         string budget = "-";
         __instance.Extra().Budget = -2;
         if ( manager != null)
