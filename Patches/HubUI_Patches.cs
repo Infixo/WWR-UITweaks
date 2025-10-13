@@ -176,7 +176,10 @@ public static class HubUI_Patches
         {
             tooltipPreset.AddBoldLabel("Generated plans");
             for (int i = 0; i < generated.Count; i++)
-                tooltipPreset.AddStatsLine($"{i}. {DecodeVehicle(generated[i].Settings.vehicle)} ({generated[i].age}m, {generated[i].Weight:F2})", StrConversions.GetBalance(generated[i].Price, __instance.Scene.currency));
+            {
+                string start = generated[i].Current == null ? "+" : $"{generated[i].Current.Entity_base.Translated_name} =>";
+                tooltipPreset.AddStatsLine($"{i + 1}. {start} {DecodeVehicle(generated[i].Settings.vehicle)} ({generated[i].age}m, {generated[i].Weight:F2})", StrConversions.GetBalance(generated[i].Price, __instance.Scene.currency));
+            }
         }
         else
             tooltipPreset.AddBoldLabel("No plans");
