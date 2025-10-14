@@ -48,10 +48,11 @@ public static class ExplorerHubs_Patches
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool GetMainControl(ExplorerHubs __instance, GameScene scene, ref Button ___main_button, ref Image ___alt)
     {
-        // define more labels
+        // More labels
         Label[] tmpLabels = new Label[8];
         ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
 
+        // Button
         int _height = 32;
         ___main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
         ___main_button.Opacity = 0f;
@@ -65,12 +66,11 @@ public static class ExplorerHubs_Patches
         ___alt.Opacity = 0f;
         _collection.Transfer(___alt);
 
+        // Grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
         __instance.SetPrivateField("main_grid", main_grid);
-        main_grid.OnFirstUpdate += (Action)delegate
-        {
-            main_grid.update_children = false;
-        };
+        main_grid.OnFirstUpdate += () => main_grid.update_children = false;
+        main_grid.OnUpdate += () => main_grid[7].OnUpdate.Invoke();
         _collection.Transfer(main_grid);
 
         // 1 Name
@@ -153,32 +153,34 @@ public static class ExplorerHubs_Patches
             // Vehicle companies
             if (manager.brands != null)
             {
-                brands += "  ";
+                brands += " | ";
                 brands += string.Join(" ",
                     MainData.Vehicle_companies
                     .Where(item => __instance.Hub.Manager.brands.Contains((ushort)item.ID))
-                    .Select(item => /*WorldwideRushExtensions.GetVehicleTypeIcon(item.Vehicles[0].Type_name) +*/ item.Translated_name[..2]));
+                    .Select(item => WorldwideRushExtensions.GetVehicleTypeIcon(item.Vehicles[0].Type_name) + item.Translated_name[..2]));
             }
         }
 
         Label _brands = LabelPresets.GetDefault(brands, scene.Engine);
         _brands.Margin_local = new FloatSpace(MainData.Margin_content);
-        //_brands.horizontal_alignment = HorizontalAlignment.Left;
-        //IControl _radio = LabelPresets.GetRadio(_brands, 100, true); // scroll
-        //_radio.Mouse_visible = false;
-        main_grid.Transfer(_brands, 7, 0);
+        _brands.horizontal_alignment = HorizontalAlignment.Left;
+        IControl _radio = LabelPresets.GetRadio(_brands, _BrandsWidth); // scroll
+        _radio.Mouse_visible = false;
+        main_grid.Transfer(_radio, 7, 0);
         __instance.Labels[7] = _brands;
 
         return false;
     }
 
-    /*
+
+    private const int _BrandsWidth = 200;
+    
     [HarmonyPatch("GetSizes"), HarmonyPostfix]
     public static void ExplorerHubs_GetSizes_Postfix(int[] sizes)
     {
-        sizes[7] = 200;
+        sizes[7] = _BrandsWidth;
     }
-    */
+    
 
     public static string GetGoalEx(this ExplorerHubs hub)
     {

@@ -37,6 +37,9 @@ public static class ExplorerCity_Patches
     }
 
 
+    private const int _NameWidth = 320;
+    private const int _CountryWidth = 300;
+
     [HarmonyPatch(typeof(InfoUI), "GetCitiesCategories"), HarmonyPrefix]
     public static bool InfoUI_GetCitiesCategories_Prefix(ref string[] __result)
     {
@@ -157,6 +160,12 @@ public static class ExplorerCity_Patches
         {
             main_grid.update_children = false;
         };
+        //main_grid.OnUpdate += (Action)delegate
+        //{
+            //main_grid[1].OnUpdate.Invoke();
+        //};
+        main_grid.OnUpdate += () => main_grid[0].OnUpdate.Invoke();
+        main_grid.OnUpdate += () => main_grid[1].OnUpdate.Invoke();
         _collection.Transfer(main_grid);
 
         // Helper
@@ -168,27 +177,29 @@ public static class ExplorerCity_Patches
             __instance.Labels[at] = label;
         }
 
-        // 0 name
+        // 0 Name
         string text = __instance.City.City.Capital ? "<!cicon_country> " : (__instance.City.Important ? "<!cicon_plane_b> " : "<!cicon_ship_b> ");
         text += __instance.City.Name;
         if (__instance.City.Sea != null) text += "  P"; // port
         if (__instance.City.City.Resort) text += "  R"; // resort
         Label _name = LabelPresets.GetDefault(text, scene.Engine);
-        InsertLabel(0, _name, HorizontalAlignment.Left);
+        IControl _radio = LabelPresets.GetRadio(_name, _NameWidth);
+        _radio.Mouse_visible = false;
+        main_grid.Transfer(_radio, 0, 0);
+        __instance.Labels[0] = _name;
 
-        // 1 country
+        // 1 Country
         Country _c = __instance.City.City.GetCountry(scene);
         string country = _c.Name.GetTranslation(Localization.Language);
         Label _country = LabelPresets.GetDefault("<!cicon_" + _c.ISO3166_1 + ":28> " + country, scene.Engine);
         _country.Margin_local = new FloatSpace(MainData.Margin_content);
         _country.horizontal_alignment = HorizontalAlignment.Left;
-        //InsertLabel(1, _country, HorizontalAlignment.Left);
-        IControl _radio = LabelPresets.GetRadio(_country, 300);
+        _radio = LabelPresets.GetRadio(_country, _CountryWidth);
         _radio.Mouse_visible = false;
         main_grid.Transfer(_radio, 1, 0);
         __instance.Labels[1] = _country;
 
-        // 2 level
+        // 2 Level
         string level = "<!cicon_star> " + StrConversions.CleanNumber(__instance.City.Level);
         if (__instance.City.Destinations.CanGrow())
             level = "<!cicon_up> " + level;
@@ -208,19 +219,7 @@ public static class ExplorerCity_Patches
         InsertLabel(4, LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.GetBiggestCrowd()), scene.Engine));
 
         // 5 MODDED fulfillment
-        /*
-        float fulfillment = __instance.City.GetFullfilment();
-        Color color = LabelPresets.Color_negative;
-        if (__instance.City.GetFullfilment() > 0f) // || __instance.City.GetFullfilmentLastMonth() > 0f)
-            if (fulfillment < (float)MainData.Defaults.City_shrink_threshold)
-                color = Color.Yellow;
-            else if (fulfillment < 1f) // && __instance.City.GetFullfilmentLastMonth() < 1f)
-                color = LabelPresets.Color_main;
-            else
-                color = LabelPresets.Color_positive;
-        */
         Label _fulfillment = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.Destinations.CountBadDestinations()), scene.Engine);
-        //_fulfillment.Color = color;
         InsertLabel(5, _fulfillment);
 
         // 6 MODDED company_trust
@@ -436,7 +435,7 @@ public static class ExplorerCity_Patches
     [HarmonyPatch("GetSizes"), HarmonyPostfix]
     public static void ExplorerCity_GetSizes_Postfix(int[] sizes)
     {
-        sizes[0] = 320; // name
-        sizes[1] = 300; // country
+        sizes[0] = _NameWidth; // name
+        sizes[1] = _CountryWidth; // country
     }
 }
