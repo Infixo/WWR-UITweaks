@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using HarmonyLib;
+using UITweaks.Patches;
 using Utilities;
 
 namespace UITweaks;
@@ -9,15 +10,7 @@ public static class ModEntry
 {
     public static readonly string harmonyId = "Infixo." + nameof(UITweaks);
 
-    // mod's instance and asset
-    //public static Mod instance { get; private set; }
-    //public static ExecutableAsset modAsset { get; private set; }
-    // logging
-    //public static ILog log = LogManager.GetLogger($"{nameof(InfoLoom)}").SetShowsErrorsInUI(false);
-
     [UnmanagedCallersOnly]
-    //[UnmanagedCallersOnly(EntryPoint = "InitializeMod")] // not needed when called via CLR
-    //[ModuleInitializer] // only works with CLR, not native loads?
     public static int InitializeMod()
     {
         DebugConsole.Show();
@@ -44,14 +37,7 @@ public static class ModEntry
         }
         // do other stuff here to initialize
         //CityWorldGraphics_Patches.DebugColors();
+        RouteUI_Patches.InitAITweaks();
         return 0;
-    }
-
-    public static void OnDispose()
-    {
-        //Log.Write(nameof(OnDispose));
-        // Harmony
-        //var harmony = new Harmony(harmonyId);
-        //harmony.UnpatchAll(harmonyId);
     }
 }

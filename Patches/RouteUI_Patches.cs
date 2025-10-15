@@ -5,7 +5,6 @@ using STM.GameWorld;
 using STM.GameWorld.Commands;
 using STM.GameWorld.Users;
 using STM.UI;
-using STM.UI.Explorer;
 using STM.UI.Floating;
 using STM.UI.Stats;
 using STMG.Engine;
@@ -13,6 +12,8 @@ using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
+using System.Reflection;
+using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using Utilities;
 
@@ -404,10 +405,13 @@ public static class RouteUI_Patches
         _container_performance.OnMouseStillTime += () => __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
 
         // Evaluation tooltip
-        ControlContainer _container_evaluation = new ControlContainer(ContentRectangle.Stretched);
-        _container_evaluation.mouse_pass = false;
-        _grid.Transfer(_container_evaluation, 0, 2, row_span: 3);
-        _container_evaluation.OnMouseStillTime += () => __instance.Line.GetEvaluationTooltip(__instance.Scene.Engine).AddToControlAuto(_container_evaluation);
+        if (_EvalTooltip)
+        {
+            ControlContainer _container_evaluation = new ControlContainer(ContentRectangle.Stretched);
+            _container_evaluation.mouse_pass = false;
+            _grid.Transfer(_container_evaluation, 0, 2, row_span: 3);
+            _container_evaluation.OnMouseStillTime += () => GetEvaluationTooltip(__instance.Line, __instance.Scene.Engine).AddToControlAuto(_container_evaluation);
+        }
 
         // Row0 Balance
         ___label_balance = LabelPresets.GetBold("", __instance.Scene.Engine);
@@ -544,5 +548,44 @@ public static class RouteUI_Patches
         CommandNewRoute _command = new CommandNewRoute(scene.Session.Player, _settings, open: true);
         scene.Session.Commands.Add(_command);
         MainData.Sound_buy.Play();
+    }
+
+
+    // Evaluation tooltip - connection with AITweaks
+
+    private static bool _EvalTooltip = false;
+    private static MethodInfo? _GetEvaluationTooltip;
+
+    private static TooltipPreset GetEvaluationTooltip(Line line, GameEngine engine)
+    {
+        object? tooltipObject = _GetEvaluationTooltip?.Invoke(null, [line, engine]); // null because we call a static method, no object to call on
+        TooltipPreset tooltip = tooltipObject as TooltipPreset ?? TooltipPreset.Get("ERROR", engine, can_lock: true);
+        return tooltip!;
+    }
+
+    public static void InitAITweaks()
+    {
+        // See if AITweaks is loaded, so we can use Evaluation Tooltip
+        Assembly? asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name.Equals("AITweaks", System.StringComparison.OrdinalIgnoreCase));
+        if (asm == null)
+        {
+            Log.Write("AITweaks not loaded. Cannot use Evaluation Tooltip.");
+            _EvalTooltip = false;
+            return;
+        }
+        Log.Write("Found AITweaks: " + asm.FullName);
+
+        // Get method
+        Type? bridgeType = asm?.GetType("AITweaks.Patches.LineEvaluation");
+        _GetEvaluationTooltip = bridgeType?.GetMethod("GetEvaluationTooltip", BindingFlags.Public | BindingFlags.Static);
+        if (_GetEvaluationTooltip == null)
+        {
+            Log.Write("Cannot access GetEvaluationTooltip method. Cannot use Evaluation Tooltip.");
+            _EvalTooltip = false;
+            return;
+        }
+
+        Log.Write("Found method: " + bridgeType?.FullName + " " + _GetEvaluationTooltip.Name);
+        _EvalTooltip = true;
     }
 }
