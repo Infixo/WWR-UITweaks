@@ -173,7 +173,7 @@ public static class ExplorerHubs_Patches
     }
 
 
-    private const int _BrandsWidth = 200;
+    private const int _BrandsWidth = 250;
     
     [HarmonyPatch("GetSizes"), HarmonyPostfix]
     public static void ExplorerHubs_GetSizes_Postfix(int[] sizes)

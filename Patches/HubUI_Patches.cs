@@ -169,6 +169,16 @@ public static class HubUI_Patches
     {
         TooltipPreset tooltipPreset = TooltipPreset.Get(Localization.GetCompany("manager_targets"), __instance.Scene.Engine);
         tooltipPreset.AddDescription(Localization.GetInfo("manager_targets"));
+
+        // Brands
+        if (__instance.Hub.Manager.brands.Length > 0)
+        {
+            tooltipPreset.AddSeparator();
+            tooltipPreset.AddBoldLabel("Brands");
+            foreach (int brandID in __instance.Hub.Manager.brands)
+                tooltipPreset.AddDescription(WorldwideRushExtensions.GetVehicleTypeIcon(MainData.Vehicle_companies[brandID].Vehicles[0].Type_name) + " " + MainData.Vehicle_companies[brandID].Translated_name);
+        }
+
         // Generated plans
         tooltipPreset.AddSeparator();
         GrowArray<GeneratedPlan> generated = __instance.Hub.Manager.GetPrivateField<GrowArray<GeneratedPlan>>("generated");

@@ -390,23 +390,24 @@ public static class RouteUI_Patches
         _grid.SetRow( 5, SizeType.Pixels, MainData.Margin_content_items);
         _grid.SetRow(10, SizeType.Pixels, MainData.Margin_content_items);
 
-        // Panel ???
-        /*
+        // Panel        
         Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_company_back_bottom);
         _panel.Margin_local = new FloatSpace(-MainData.Margin_content + MainData.Margin_content_items + 2, 0f);
         _panel.Color = __instance.Company.Color_secondary;
         _panel.use_multi_texture = true;
         _grid.Transfer(_panel, 0, 4, _grid.Columns_count, _grid.Rows_count - 4);
-        */
 
         // Performance tooltip
         ControlContainer _container_performance = new ControlContainer(ContentRectangle.Stretched);
         _container_performance.mouse_pass = false;
         _grid.Transfer(_container_performance, 0, 0);
-        _container_performance.OnMouseStillTime += (Action)delegate
-        {
-            __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
-        };
+        _container_performance.OnMouseStillTime += () => __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
+
+        // Evaluation tooltip
+        ControlContainer _container_evaluation = new ControlContainer(ContentRectangle.Stretched);
+        _container_evaluation.mouse_pass = false;
+        _grid.Transfer(_container_evaluation, 0, 2, row_span: 3);
+        _container_evaluation.OnMouseStillTime += () => __instance.Line.GetEvaluationTooltip(__instance.Scene.Engine).AddToControlAuto(_container_evaluation);
 
         // Row0 Balance
         ___label_balance = LabelPresets.GetBold("", __instance.Scene.Engine);

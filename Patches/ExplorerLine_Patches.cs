@@ -225,7 +225,7 @@ public static class ExplorerLine_Patches
         __instance.Labels[4] = _balance;
 
         // 5 Num cities
-        InsertLabelAt(5, StrConversions.CleanNumber(__instance.Line.Instructions.Cities.Length) + (__instance.Line.Instructions.Cyclic ? " <!cicon_down>" : ""));
+        InsertLabelAt(5, StrConversions.CleanNumber(__instance.Line.Instructions.Cities.Length) + (__instance.Line.Instructions.Cyclic ? " <!cicon_fast>" : ""));
 
         // 6 Length
         __instance.Extra().Distance = __instance.Line.GetTotalDistance();
