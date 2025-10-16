@@ -22,9 +22,9 @@ public static class ExplorerLine_Patches
     {
         public double Distance;
         public long Throughput;
-        public long Waiting = -1L;
+        //public long Waiting = -1L;
         public string Country = "";
-        public bool Active = true;
+        //public bool Active = true;
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerLine line) => _extras.GetOrCreateValue(line);
@@ -44,7 +44,7 @@ public static class ExplorerLine_Patches
         "<!cicon_city>", // 5 num cities
         "<!cicon_left>  <!cicon_right>", // 6 length
         "<!cicon_fast>", // 7 throughput
-        "<!cicon_passenger>", // 8
+        "<!cicon_ship_b>" // 8 evaluation "<!cicon_passenger>", // 8
         ];
         return false;
     }
@@ -235,20 +235,22 @@ public static class ExplorerLine_Patches
         __instance.Extra().Throughput = __instance.Line.GetQuarterAverageThroughput(); // EstimateThroughput();
         InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
-        // 8 Waiting passengers
+        // 8 Evaluations
         //__instance.Extra().Waiting = __instance.Line.GetWaiting();
-        InsertLabelAt(8, "~"); //  StrConversions.CleanNumber(__instance.Extra().Waiting));
+        if (AITweaksLink.Active)
+            InsertLabelAt(8, AITweaksLink.GetNumEvaluations(__instance.Line) > 0 ? "<!cicon_ship_b>" : ".");
+        else
+            InsertLabelAt(8, "");
 
         return false;
     }
 
-
+    /*
     [HarmonyPatch("Matches"), HarmonyPostfix]
     public static void ExplorerLine_Matches_Postfix(ExplorerLine __instance, bool __result, FilterCategory[] categories, GameScene scene, Company company, CityUser city)
     {
         __instance.Extra().Active = __result;
     }
-     
 
     [HarmonyPatch("Update"), HarmonyPostfix]
     public static void ExlorerLine_Update_Postfix(ExplorerLine __instance, GameScene scene, Company company)
@@ -258,7 +260,7 @@ public static class ExplorerLine_Patches
         __instance.Labels[8].Text = StrConversions.CleanNumber(__instance.Extra().Waiting);
         //Log.Write($"{scene.Session.Frame&0xFFFF:X4} {__instance.Line.ID:D4}");
     }
-    
+    */
 
     public static int EstimateThroughput(this Line line)
     {
@@ -382,7 +384,8 @@ public static class ExplorerLine_Patches
                 break;
 
             case 8: // waiting
-                result = __instance.Extra().Waiting.CompareTo(_item.Extra().Waiting);
+                //result = __instance.Extra().Waiting.CompareTo(_item.Extra().Waiting);
+                result = 0; // no comparison here
                 break;
         }
 

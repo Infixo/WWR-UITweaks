@@ -37,7 +37,7 @@ public static class ModEntry
         }
         // do other stuff here to initialize
         //CityWorldGraphics_Patches.DebugColors();
-        RouteUI_Patches.InitAITweaks();
+        AITweaksLink.InitAITweaks();
         return 0;
     }
 }
