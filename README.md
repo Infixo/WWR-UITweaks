@@ -3,8 +3,9 @@
 
 ## Features
 
-### Generic
+### Various
 - World view. City names are colored based on how overcrowded their indirect capacity is. Red cities no longer accept indirect passengers.
+- (0.4) Improved vehicles tooltips.
 
 ### Explorers (new columns)
 - Countries. Average city level, how many cities are not connected to any lines.
@@ -13,12 +14,14 @@
   - (0.2) Filters and counters for city features and buildings.
   - (0.3) Number of unfulfilled destinations.
 - Lines.
-  - Num of cities, total length, theoretical throughput, waiting passengers.
+  - Num of cities, total length, throughput, (0.4) evaluation flag.
   - (0.2) Search by Country.
   - (0.3) Mark lines that have >1 hub.
 - Vehicle types. Minimum passengers, estimated profit, monthly throughput on a 1000km line, range for planes.
 - (0.2) Vehicles. Quarter efficieny and throughput.
-- (0.3) Hubs. Shows budget and brands info.
+- Hubs. 
+  - (0.3) Shows budget and brands info.
+  - (0.4) Info about generated plans.
 
 ### Floating windows
 - RouteUI.
@@ -27,6 +30,7 @@
   - City names are colores based on indirect capacity usage.
   - Quarterly efficieny is calculated using weighted average on their capacity.
   - (0.2) One-click upgrade to the next in chain.
+  - (0.4) Shows evaluations done by a hub manager in a tooltip.
 - UpgradeUI. More info in the vehicle selection drop-down. Quick next/prev from the same company buttons.
 - CityUI. Travellers toolip shows lines at the top (no more scrolling!) and indirect connections are sorted by number of people.
 - CountryUI.
@@ -34,6 +38,8 @@
   - In cities list, there is a mark if the city is connected to any lines.
 - HubUI.
   - (0.3) Hire manager specific for a country of currently used vehicles. 
+  - (0.4) Info about generated plans and list of brands.
+- (0.4) VehicleUI shows line number.
 
 ### Troubleshooting
 - Output messages are logged into UITweaksLog.txt in the %TEMP% dir.
@@ -48,6 +54,11 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.4.0 (2025-10-16)
+  - AITweaks link to get evaluations info.
+  - Info about generated plans.
+  - Minor improvements.
+  - Removed: waiting passengers from lines explorer.
 - v0.3.0 (2025-10-10)
   - Budget and brands in hubs explorer.
   - More enhancements in cities and lines explorer.

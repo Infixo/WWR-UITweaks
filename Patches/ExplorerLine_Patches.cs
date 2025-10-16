@@ -119,8 +119,8 @@ public static class ExplorerLine_Patches
                 _tooltip.AddDescription("Average quarter throughput.");
                 break;
             case 8: // Waiting
-                _tooltip = TooltipPreset.Get(Localization.GetGeneral("passengers"), ___Session.Scene.Engine);
-                _tooltip.AddDescription("Passengers wanting to use the line. Passengers waiting to use another line are excluded.");
+                _tooltip = TooltipPreset.Get("Line evaluations", ___Session.Scene.Engine);
+                _tooltip.AddDescription(AITweaksLink.Active ? "Marks with <!cicon_ship_b> evaluated lines." : "AITweaks not present.");
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
