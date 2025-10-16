@@ -132,7 +132,7 @@ public static class ExplorerHubs_Patches
         __instance.Extra().Budget = -2;
         if ( manager != null)
         {
-            __instance.Extra().Budget = manager.budget == 0 ? -1 : (((long)scene.currency.InCurrency(manager.budget))+500000L)/1000000L;
+            __instance.Extra().Budget = manager.budget == 0 ? -1 : (((long)scene.currency.Convert(manager.budget))+500000L)/1000000L;
             budget = __instance.Extra().Budget >= 0 ? StrConversions.CleanNumber(__instance.Extra().Budget) + "M" : Localization.GetGeneral("auto");
         }
         Label _budget = LabelPresets.GetDefault(budget, scene.Engine);
@@ -191,12 +191,6 @@ public static class ExplorerHubs_Patches
         if (manager.buy_roads) goal += "<!cicon_road_vehicle>";
         if (manager.buy_rails) goal += "<!cicon_train>";
         return goal;
-    }
-
-
-    public static decimal InCurrency(this CurrencyEntity entity, decimal number)
-    {
-        return Math.Ceiling((decimal)number * entity.Factor / 100m);
     }
 
 
