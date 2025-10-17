@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-using HarmonyLib;
-using Utilities;
+﻿using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using STM.Data;
@@ -11,6 +9,8 @@ using STMG.Drawing;
 using STMG.Drawing.FreeType;
 using STMG.Engine;
 using STVisual.Utility;
+using System.Reflection;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -28,10 +28,16 @@ public static class CityWorldGraphics_Patches
         DrawSpriteCollection<VertexPositionColorTexture, DrawTexture> _layer = layers.Text();
         FreeFontSystem _font = MainData.Font_world_text.Get(engine);
         bool _collision = true;
-        if (layers.Scene.Selection.IsSelected(city))
-        {
-            color = Color.Lerp(color, LabelPresets.Color_positive, 0.5f);
-        }
+        //if (layers.Scene.Selection.IsSelected(city))
+        //{
+        //color = Color.Lerp(color, LabelPresets.Color_positive, 0.5f);
+        //}
+
+        // Infixo: get the color based on overcrowding
+        if (layers.Scene.Map.view == 0)
+            color = city.OvercrowdedColor(color);
+
+        // Scale
         float _s = (city.City.Capital ? 0.002f : 0.0015f);
         if (!city.Important)
         {
@@ -41,6 +47,8 @@ public static class CityWorldGraphics_Patches
         {
             _s = _s * layers.Zoom / 5f;
         }
+
+        // Name & color tweaks
         string _name = city.Name;
         if (layers.Scene.Action is CopyRouteAction || layers.Scene.Action is CreateNewRoadAction)
         {
@@ -95,6 +103,11 @@ public static class CityWorldGraphics_Patches
                 return false; // skip the original
             }
         }
+
+        // Add an umbrella 2602 if Resort, 2603 for snowman
+        if (layers.Scene.Map.view == 0 && city.City.Resort)
+            _name += $" {'\u2602'}";
+
         if ((layers.Scene.Map.view == 1 || layers.Scene.Info_mode) && city.Trust.Dominated != ushort.MaxValue)
         {
             _name += $"<!cc_{city.Trust.Dominated}:128>";
@@ -105,11 +118,9 @@ public static class CityWorldGraphics_Patches
         }
         else if (city.City.Capital)
         {
-            _name += "<!cicon_country_x2:48>";
+            _name += " <!cicon_country_x2:48>";
         }
 
-        // Infixo: get the color based on overcrowding
-        color = city.OvercrowdedColor(color);
 
         if (hover)
         {

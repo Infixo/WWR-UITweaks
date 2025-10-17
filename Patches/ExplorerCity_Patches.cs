@@ -180,8 +180,8 @@ public static class ExplorerCity_Patches
         // 0 Name
         string text = __instance.City.City.Capital ? "<!cicon_country> " : (__instance.City.Important ? "<!cicon_plane_b> " : "<!cicon_ship_b> ");
         text += __instance.City.Name;
-        if (__instance.City.Sea != null) text += "  P"; // port
-        if (__instance.City.City.Resort) text += "  R"; // resort
+        if (__instance.City.Sea != null) text += $"  P"; // port - 2693 anchor (no)
+        if (__instance.City.City.Resort) text += $"  {'\u2602'}"; // resort - 2602 umbrella 2603 snowman
         Label _name = LabelPresets.GetDefault(text, scene.Engine);
         IControl _radio = LabelPresets.GetRadio(_name, _NameWidth);
         _radio.Mouse_visible = false;
