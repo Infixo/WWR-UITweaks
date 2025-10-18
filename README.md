@@ -4,7 +4,9 @@
 ## Features
 
 ### Various
-- World view. City names are colored based on how overcrowded their indirect capacity is. Red cities no longer accept indirect passengers.
+- World view.
+  - City names are colored based on how overcrowded their indirect capacity is. Red cities no longer accept indirect passengers.
+  - (0.5) Resorts are marked with an umbrella icon.
 - (0.4) Improved vehicles tooltips.
 
 ### Explorers (new columns)
@@ -17,6 +19,7 @@
   - Num of cities, total length, throughput, (0.4) evaluation flag.
   - (0.2) Search by Country.
   - (0.3) Mark lines that have >1 hub.
+  - (0.5) New filters: empty, national, international, evaluated.
 - Vehicle types. Minimum passengers, estimated profit, monthly throughput on a 1000km line, range for planes.
 - (0.2) Vehicles. Quarter efficieny and throughput.
 - Hubs. 
@@ -25,6 +28,7 @@
 
 ### Floating windows
 - RouteUI.
+  - (0.5) Ability to change the assigned vehicle type. Only when the line is empty.
   - Extra info about the line. Quarterly throughput, number of vehicles, total distance.
   - Waiting passengers in each city and on the entire line.
   - City names are colores based on indirect capacity usage.
@@ -54,6 +58,10 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.5.0 (2025-10-18)
+  - Ability to change line type.
+  - New filters in the lines explorer.
+  - Resorts marked with an umbrella icon :)
 - v0.4.0 (2025-10-16)
   - AITweaks link to get evaluations info.
   - Info about generated plans.
