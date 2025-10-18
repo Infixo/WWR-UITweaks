@@ -7,13 +7,10 @@ using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Floating;
 using STM.UI.Stats;
-using STMG.Engine;
 using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
-using System.Reflection;
-using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using Utilities;
 
@@ -29,6 +26,7 @@ public static class RouteUI_Patches
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         public Label Label_Throughput;
         public Label Label_Vehicles;
+        public Button[] Buttons = new Button[4];
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
     }
     private static readonly ConditionalWeakTable<RouteUI, ExtraData> _extras = [];
@@ -481,6 +479,8 @@ public static class RouteUI_Patches
             case 3: typeIcon = " <!cicon_ship>"; break;
         }
         __instance.Extra().Label_Vehicles.Text = StrConversions.CleanNumber(__instance.Line.Vehicles) + typeIcon;
+        // Buttons
+        __instance.UpdateButtons();
     }
 
 
@@ -548,5 +548,58 @@ public static class RouteUI_Patches
         CommandNewRoute _command = new CommandNewRoute(scene.Session.Player, _settings, open: true);
         scene.Session.Commands.Add(_command);
         MainData.Sound_buy.Play();
+    }
+
+
+    [HarmonyPatch("GetRouteEdit"), HarmonyPrefix]
+    public static bool RouteUI_GetRouteEdit_Prefix(RouteUI __instance)
+    {
+        if (__instance.Company != __instance.Scene.Session.GetPlayer())
+            return false;
+
+        // Grid
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), 8, 1, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items);
+        __instance.CallPrivateMethodVoid("AddControl", [_grid, "edit"]);
+
+        // Grid layout
+        _grid.SetColumn(0, SizeType.Pixels, MainData.Size_button); // space
+        _grid.SetColumn(2, SizeType.Pixels, MainData.Size_button); // space
+        _grid.SetColumn(3, SizeType.Pixels, MainData.Size_button); // Road
+        _grid.SetColumn(4, SizeType.Pixels, MainData.Size_button); // Train
+        _grid.SetColumn(5, SizeType.Pixels, MainData.Size_button); // Plane
+        _grid.SetColumn(6, SizeType.Pixels, MainData.Size_button); // Ship
+        _grid.SetColumn(7, SizeType.Pixels, MainData.Size_button); // space
+
+        // Edit route button
+        Button _button = ButtonPresets.TextBlack(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), Localization.GetVehicle("edit_route"), __instance.Scene.Engine).Control;
+        _button.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Transfer(_button, 1, 0);
+        _button.OnButtonPress += () => __instance.CallPrivateMethodVoid("Edit", []);
+
+        // Buttons for vehicle types
+        for (int vt = 0; vt < 4; vt++)
+        {
+            Button button = ButtonPresets.TextGeneral(new ContentRectangle(0f, 0f, MainData.Size_button, MainData.Size_button, 1f), WorldwideRushExtensions.GetVehicleTypeIcon(vt), __instance.Scene.Engine).Control;
+            _grid.Transfer(button, vt + 3, 0);
+            byte vehicleType = (byte)vt;
+            button.OnButtonPress += (Action)delegate
+            {
+                __instance.Line.SetPrivateField("vehicle_type", vehicleType);
+                __instance.GetPrivateProperty<LongText>("Label_header").Text = __instance.Line.GetName();
+            };
+            __instance.Extra().Buttons[vt] = button;
+        }
+        __instance.UpdateButtons();
+
+        return false;
+    }
+
+
+    internal static void UpdateButtons(this RouteUI ui)
+    {
+        for (int vt = 0; vt < 4; vt++)
+            ui.Extra().Buttons[vt].Enabled = (ui.Line.Vehicles == 0 && ui.Line.Vehicle_type != vt);
     }
 }

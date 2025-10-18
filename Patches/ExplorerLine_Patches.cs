@@ -7,6 +7,7 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Utilities;
@@ -50,10 +51,36 @@ public static class ExplorerLine_Patches
     }
 
 
-    [HarmonyPatch(typeof(InfoUI), "GetRoutesFilterCategories"), HarmonyPostfix]
-    public static void  InfoUI_GetRoutesFilterCategories_Postix(FilterCategory[] __result)
+    [HarmonyPatch(typeof(InfoUI), "GetRoutesFilterCategories"), HarmonyPrefix]
+    public static bool InfoUI_GetRoutesFilterCategories_Postix(InfoUI __instance, ref FilterCategory[] __result)
     {
-        __result[0].Items[0].SetValue(0); // show empty lines
+        //__result[0].Items[0].SetValue(0); // show empty lines
+        __result = new FilterCategory[3]
+        {
+            // 0 Number of vehicles
+            new FilterCategory(
+                Localization.GetInfrastructure("vehicles"), "values", 
+                new FilterCategoryItem(Localization.GetGeneral("min"), 1L), 
+                new FilterCategoryItem(Localization.GetGeneral("max"), 
+                __instance.CallPrivateMethod<int>("GetMaxRouteVehicles", []))),
+            // 1 Vehicle type
+            new FilterCategory(
+                Localization.GetGeneral("category"), "list", 
+                new FilterCategoryItem(Localization.GetInfrastructure("road_vehicles")), 
+                new FilterCategoryItem(Localization.GetInfrastructure("trains")), 
+                new FilterCategoryItem(Localization.GetInfrastructure("planes")), 
+                new FilterCategoryItem(Localization.GetInfrastructure("ships"))),
+            // 2 Categories: Empty, National, Evaluated
+            new FilterCategory(
+                "Filters", "list", // name + type
+                //new FilterCategoryItem("- Reverse -"),
+                new FilterCategoryItem("Empty"),
+                new FilterCategoryItem("National"),
+                new FilterCategoryItem("International"),
+                new FilterCategoryItem("Evaluated")),
+        };
+        __result[0].Items[0].SetValue(1L);
+        return false;
     }
 
     /*
@@ -84,7 +111,7 @@ public static class ExplorerLine_Patches
 
 
     [HarmonyPatch(typeof(InfoUI), "GetRouteTooltip"), HarmonyPrefix]
-    public static bool RouteUI_GetRouteTooltip_Prefix(IControl parent, int id, Session ___Session)
+    public static bool InfoUI_GetRouteTooltip_Prefix(IControl parent, int id, Session ___Session)
     {
         TooltipPreset? _tooltip = null;
         switch (id)
@@ -128,8 +155,26 @@ public static class ExplorerLine_Patches
     }
 
 
+    // Line ID without commas!
+    [HarmonyPatch(typeof(Line), "GetName"), HarmonyPrefix]
+    public static bool Line_GetName_Prefix(Line __instance, ref string __result, string ___name, bool prefix = true)
+    {
+        string _prefix = prefix ? WorldwideRushExtensions.GetVehicleTypeIcon(__instance.Vehicle_type) : "";
+        if (___name != null)
+        {
+            __result = _prefix + ___name;
+            return false;
+        }
+        if (__instance.Instructions.Cities.Length > 2)
+            __result = $"{_prefix}{__instance.ID + 1}. {__instance.Instructions.Cities[0].Name} <!cicon_right>...<!cicon_right> {__instance.Instructions.Cities[__instance.Instructions.Cities.Length - 1].Name}";
+        else
+            __result = $"{_prefix}{__instance.ID + 1}. {__instance.Instructions.Cities[0].Name} <!cicon_right> {__instance.Instructions.Cities[__instance.Instructions.Cities.Length - 1].Name}";
+        return false;
+    }
+
+
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
-    public static bool GetMainControl(ExplorerLine __instance, ref Button ___main_button, ref Image ___alt, GameScene scene)
+    public static bool ExplorerLine_GetMainControl_Prefix(ExplorerLine __instance, ref Button ___main_button, ref Image ___alt, GameScene scene)
     {
         // define more labels
         Label[] tmpLabels = new Label[9];
@@ -383,7 +428,7 @@ public static class ExplorerLine_Patches
                 result = __instance.Extra().Throughput.CompareTo(_item.Extra().Throughput);
                 break;
 
-            case 8: // waiting
+            case 8: // evaluated
                 //result = __instance.Extra().Waiting.CompareTo(_item.Extra().Waiting);
                 result = 0; // no comparison here
                 break;
@@ -397,5 +442,73 @@ public static class ExplorerLine_Patches
         __result = (sort_id < __instance.Labels.Length) ? result > 0 : result < 0;
 
         return false;
+    }
+
+    [HarmonyPatch("Matches"), HarmonyPrefix]
+    public static bool ExplorerLine_Matches_Prefix(ExplorerLine __instance, ref bool __result, FilterCategory[] categories, GameScene scene, Company company, CityUser city)
+    {
+        __result = false;
+        // 0 Number of vehicles
+        if (categories[2].Items[0].Selected && __instance.Line.Vehicles > 0)
+            return false;
+        if (!categories[2].Items[0].Selected && !categories[0].MinMaxFits(__instance.Line.Vehicles))
+            return false;
+
+        // 1 Vehicle type
+        if (categories[1].HasSelected())
+        {
+            if (categories[1].Items[0].Selected && __instance.Line.HasRoadVehicles())
+                __result = true;
+            if (categories[1].Items[1].Selected && __instance.Line.HasTrains())
+                __result = true;
+            if (categories[1].Items[2].Selected && __instance.Line.HasPlanes())
+                __result = true;
+            if (categories[1].Items[3].Selected && __instance.Line.HasShips())
+                __result = true;
+        }
+        else
+            __result = true;
+
+        // 2 Filters
+        bool national = __instance.Line.IsNational();
+        if (categories[2].Items[1].Selected)
+            __result &= national;
+        if (categories[2].Items[2].Selected)
+            __result &= !national;
+        if (categories[2].Items[3].Selected)
+            __result &= AITweaksLink.GetNumEvaluations(__instance.Line) > 0;
+
+        return false;
+    }
+
+
+    internal static bool IsNational(this Line line)
+    {
+        // Check if all cities are in the same country
+        byte country = line.Instructions.Cities[0].City.Country_id;
+        foreach (CityUser city in line.Instructions.Cities)
+            if (city.City.Country_id != country)
+                return false;
+        return true;
+    }
+
+
+    [HarmonyPatch("FillCategories"), HarmonyPostfix]
+    public static void ExplorerLine_FillCategories_Postfix(ExplorerLine __instance, FilterCategory[] categories)
+    {
+        if (__instance.Valid)
+        {
+            // Empty
+            if (__instance.Line.Vehicles == 0)
+                categories[2].Items[0].IncreaseCount();
+            // National/International
+            if (__instance.Line.IsNational())
+                categories[2].Items[1].IncreaseCount();
+            else
+                categories[2].Items[2].IncreaseCount();
+            // Evaluated
+            if (AITweaksLink.GetNumEvaluations(__instance.Line) > 0)
+                categories[2].Items[3].IncreaseCount();
+        }
     }
 }
