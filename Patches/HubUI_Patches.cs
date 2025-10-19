@@ -171,13 +171,15 @@ public static class HubUI_Patches
         tooltipPreset.AddDescription(Localization.GetInfo("manager_targets"));
 
         // Brands
-        if (__instance.Hub.Manager.brands.Length > 0)
+        tooltipPreset.AddSeparator();
+        if (__instance.Hub.Manager.brands != null && __instance.Hub.Manager.brands.Length > 0)
         {
-            tooltipPreset.AddSeparator();
             tooltipPreset.AddBoldLabel("Brands");
             foreach (int brandID in __instance.Hub.Manager.brands)
                 tooltipPreset.AddDescription(WorldwideRushExtensions.GetVehicleTypeIcon(MainData.Vehicle_companies[brandID].Vehicles[0].Type_name) + " " + MainData.Vehicle_companies[brandID].Translated_name);
         }
+        else
+            tooltipPreset.AddBoldLabel("No brands");
 
         // Generated plans
         tooltipPreset.AddSeparator();
@@ -193,6 +195,7 @@ public static class HubUI_Patches
         }
         else
             tooltipPreset.AddBoldLabel("No plans");
+
         // Attach
         tooltipPreset.AddToControlBellow(parent);
         return false;

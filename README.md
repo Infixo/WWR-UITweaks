@@ -58,6 +58,8 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.5.1 (2025-10-19)
+  - Fixed hub manager crashing when there is no brands selected.
 - v0.5.0 (2025-10-18)
   - Ability to change line type.
   - New filters in the lines explorer.
