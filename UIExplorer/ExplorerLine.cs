@@ -7,12 +7,10 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
-using System.Data;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Utilities;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIExplorer;
 
 
 [HarmonyPatch(typeof(ExplorerLine))]
@@ -22,7 +20,7 @@ public static class ExplorerLine_Patches
     public class ExtraData
     {
         public double Distance;
-        public long Throughput;
+        public int Age;
         //public long Waiting = -1L;
         public string Country = "";
         //public bool Active = true;
@@ -44,7 +42,7 @@ public static class ExplorerLine_Patches
         // added
         "<!cicon_city>", // 5 num cities
         "<!cicon_left>  <!cicon_right>", // 6 length
-        "<!cicon_fast>", // 7 throughput
+        "<!cicon_fast>", // 7 age
         "<!cicon_ship_b>" // 8 evaluation "<!cicon_passenger>", // 8
         ];
         return false;
@@ -140,13 +138,13 @@ public static class ExplorerLine_Patches
                 _tooltip = TooltipPreset.Get(Localization.GetGeneral("distance"), ___Session.Scene.Engine);
                 _tooltip.AddDescription("Total distance.");
                 break;
-            case 7: // Throughput
-                _tooltip = TooltipPreset.Get("Throughput", ___Session.Scene.Engine);
+            case 7: // Age
+                _tooltip = TooltipPreset.Get("Line age", ___Session.Scene.Engine);
                 //_tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
-                _tooltip.AddDescription("Average quarter throughput.");
+                _tooltip.AddDescription("Age of the oldest vehicle (in months).");
                 break;
             case 8: // Waiting
-                _tooltip = TooltipPreset.Get("Line evaluations", ___Session.Scene.Engine);
+                _tooltip = TooltipPreset.Get("Line evaluation", ___Session.Scene.Engine);
                 _tooltip.AddDescription(AITweaksLink.Active ? "Marks with <!cicon_ship_b> evaluated lines." : "AITweaks not present.");
                 break;
         }
@@ -276,11 +274,11 @@ public static class ExplorerLine_Patches
         __instance.Extra().Distance = __instance.Line.GetTotalDistance();
         InsertLabelAt(6, StrConversions.GetDistance(__instance.Extra().Distance));
 
-        // 7 Quarter average throughput
-        __instance.Extra().Throughput = __instance.Line.GetQuarterAverageThroughput(); // EstimateThroughput();
-        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
+        // 7 Age of the line
+        __instance.Extra().Age = __instance.Line.GetAge(); // GetQuarterAverageThroughput(); // EstimateThroughput();
+        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Age));
 
-        // 8 Evaluations
+        // 8 Evaluation
         //__instance.Extra().Waiting = __instance.Line.GetWaiting();
         if (AITweaksLink.Active)
             InsertLabelAt(8, AITweaksLink.GetNumEvaluations(__instance.Line) > 0 ? "<!cicon_ship_b>" : ".");
@@ -288,6 +286,20 @@ public static class ExplorerLine_Patches
             InsertLabelAt(8, "");
 
         return false;
+    }
+
+
+    /// <summary>
+    /// Age of the line - age of the oldest vehicle.
+    /// </summary>
+    /// <param name="line"></param>
+    /// <returns></returns>
+    internal static int GetAge(this Line line)
+    {
+        int age = 0;
+        for (int i = 0; i < line.Vehicles; i++)
+            age = Math.Max(age, line.Routes[i].Vehicle.Age);
+        return age;
     }
 
     /*
@@ -424,8 +436,8 @@ public static class ExplorerLine_Patches
                 result = __instance.Extra().Distance.CompareTo(_item.Extra().Distance);
                 break;
 
-            case 7: // throughput
-                result = __instance.Extra().Throughput.CompareTo(_item.Extra().Throughput);
+            case 7: // age
+                result = __instance.Extra().Age.CompareTo(_item.Extra().Age);
                 break;
 
             case 8: // evaluated
