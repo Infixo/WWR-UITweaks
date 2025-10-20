@@ -244,7 +244,7 @@ public static class CityWorldGraphics_Patches
             _font.DrawString(_layer, _level, offset, _color, _s, not_trimmed: true, markup: true, height + 0.03f);
             _bounds.Offset(0.2f, 0f);
             offset.X += 33.333332f * _s;
-            string _efficiency2 = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutes());
+            string _efficiency2 = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutesCount());
             _font.DrawString(_layer, _efficiency2, offset, Color.Black * 0.3f, _s, not_trimmed: true, markup: true, height);
             _font.DrawString(_layer, _efficiency2, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height + 0.05f);
             Hub _hub2 = city.GetHub(layers.Scene.Session.Player);
@@ -264,7 +264,7 @@ public static class CityWorldGraphics_Patches
         {
             _bounds.Offset(66.666664f * _s, 0f);
             offset.X += 33.333332f * _s;
-            string _efficiency = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutes());
+            string _efficiency = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutesCount());
             _font.DrawString(_layer, _efficiency, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height);
             Hub _hub = city.GetHub(layers.Scene.Session.Player);
             if (_hub != null)
@@ -279,7 +279,7 @@ public static class CityWorldGraphics_Patches
     }
 
     // Source: STM.UI.Floating.CityUI.GetCityRoutes
-    internal static int GetCityRoutes(this CityUser city)
+    internal static int GetCityRoutesCount(this CityUser city)
     {
         GrowArray<Route> _result = new GrowArray<Route>(city.Routes.Count);
         for (int i = 0; i < city.Routes.Count; i++)
