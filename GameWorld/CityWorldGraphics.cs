@@ -180,6 +180,116 @@ public static class CityWorldGraphics_Patches
     }
 
 
+    [HarmonyPatch("DrawBottomInfo"), HarmonyPrefix]
+    public static bool DrawBottomInfo(bool hover, CityUser city, float height, Vector2 offset, Color color, ThreadDrawLayer layers, GameEngine engine)
+    {
+        if (layers.Zoom > 25f)
+        {
+            return false;
+        }
+        DrawSpriteCollection<VertexPositionColorTexture, DrawTexture> _layer = layers.Text();
+        FreeFontSystem _font = MainData.Font_default.Get(engine);
+        Color _color = (city.Highlight ? LabelPresets.Color_positive : color);
+        float _s = (city.City.Capital ? 0.003f : 0.0025f);
+        if (!city.Important)
+        {
+            _s *= 0.8f;
+        }
+        if (layers.Zoom < 5f)
+        {
+            _s = _s * layers.Zoom / 5f;
+        }
+        if (layers.Scene.Map.view > 0 || layers.Scene.Action is CopyRouteAction || layers.Scene.Action is CreateNewRoadAction)
+        {
+            _color *= 0.5f;
+        }
+        if (!hover)
+        {
+            _color *= 0.85f;
+        }
+        offset.X += 33.333332f * _s;
+        offset.Y -= 16.666666f * _s;
+        if (city.Important)
+        {
+            if (layers.Zoom > 15f)
+            {
+                _color *= 1f - (layers.Zoom - 15f) / 10f;
+            }
+            if (_color.A <= 10)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (layers.Zoom > 8f)
+            {
+                _color *= 1f - (layers.Zoom - 8f) / 6f;
+            }
+            _color *= 0.8f;
+            if (_color.A <= 10)
+            {
+                return false;
+            }
+        }
+        string _level = $"{city.Level}";
+        VectorRectangle _bounds = new VectorRectangle(_s * 20f);
+        _bounds.Offset(offset.X, offset.Y + 13.333333f * _s);
+        offset.X += 16.666666f * _s;
+        if (hover)
+        {
+            MainData.Icon_star.Upscale.DrawHeight(layers.Cities(), _bounds, Color.Black * 0.5f, height);
+            MainData.Icon_star.Upscale.DrawHeight(layers.Cities(), _bounds, _color, height + 0.03f);
+            _font.DrawString(_layer, _level, offset, Color.Black * 0.5f, _s, not_trimmed: true, markup: true, height);
+            _font.DrawString(_layer, _level, offset, _color, _s, not_trimmed: true, markup: true, height + 0.03f);
+            _bounds.Offset(0.2f, 0f);
+            offset.X += 33.333332f * _s;
+            string _efficiency2 = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutes());
+            _font.DrawString(_layer, _efficiency2, offset, Color.Black * 0.3f, _s, not_trimmed: true, markup: true, height);
+            _font.DrawString(_layer, _efficiency2, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height + 0.05f);
+            Hub _hub2 = city.GetHub(layers.Scene.Session.Player);
+            if (_hub2 != null)
+            {
+                string _text2 = Localization.GetCompany("hub") + " (" + StrConversions.OutOf(_hub2.Vehicles.Count, _hub2.Max_vehicles) + ")";
+                offset.X -= 83.333336f * _s;
+                offset.Y += 33.333332f * _s;
+                _font.DrawString(_layer, _text2, offset, Color.Black * 0.3f, _s, not_trimmed: true, markup: true, height);
+                _font.DrawString(_layer, _text2, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height + 0.05f);
+            }
+            return false;
+        }
+        MainData.Icon_star.Upscale.DrawHeight(layers.Cities(), _bounds, _color, height);
+        _font.DrawString(_layer, _level, offset, _color, _s, not_trimmed: true, markup: true, height);
+        if (layers.Scene.Info_mode)
+        {
+            _bounds.Offset(66.666664f * _s, 0f);
+            offset.X += 33.333332f * _s;
+            string _efficiency = StrConversions.Percent(city.GetFullfilment()) + " (" + StrConversions.Percent(city.GetFullfilmentLastMonth()) + ")  <!cicon_locate>" + StrConversions.CleanNumber(city.GetCityRoutes());
+            _font.DrawString(_layer, _efficiency, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height);
+            Hub _hub = city.GetHub(layers.Scene.Session.Player);
+            if (_hub != null)
+            {
+                string _text = Localization.GetCompany("hub") + " (" + StrConversions.OutOf(_hub.Vehicles.Count, _hub.Max_vehicles) + ")";
+                offset.X -= 83.333336f * _s;
+                offset.Y += 33.333332f * _s;
+                _font.DrawString(_layer, _text, offset, LabelPresets.Color_positive * ((float)(int)_color.A / 255f), _s, not_trimmed: true, markup: true, height);
+            }
+        }
+        return false;
+    }
+
+    // Source: STM.UI.Floating.CityUI.GetCityRoutes
+    internal static int GetCityRoutes(this CityUser city)
+    {
+        GrowArray<Route> _result = new GrowArray<Route>(city.Routes.Count);
+        for (int i = 0; i < city.Routes.Count; i++)
+        {
+            _result.AddSingle(city.Routes[i].Instructions);
+        }
+        return _result.Count;
+    }
+
+
     public static void DebugColors()
     {
         void Show(Color c)

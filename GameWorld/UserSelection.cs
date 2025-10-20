@@ -3,7 +3,6 @@ using STM.Data;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI.Floating;
-using STMG.Engine;
 using STMG.Utility;
 using Utilities;
 
@@ -19,9 +18,24 @@ internal static class UserSelection_Patches
         if (Hotkeys.engine.Mouse.right == KeyState.Pressed && __instance.Hover != null && ___scene.Action == null)
         {
             if (__instance.Hover is VehicleBaseUser)
-                (__instance.Hover as VehicleBaseUser)!.OpenRoute(___scene);
-            else if (__instance.Hover is CityUser)
-                (__instance.Hover as CityUser)!.OpenHub(___scene);
+            {
+                if (!___scene.Engine.Keys.Shift)
+                    (__instance.Hover as VehicleBaseUser)!.OpenRoute(___scene);
+                else
+                    ___scene.Cities[(__instance.Hover as VehicleBaseUser)!.Hub.City].User.OpenHub(___scene);
+                return;
+            }
+            if (__instance.Hover is CityUser)
+            {
+                if (!___scene.Engine.Keys.Shift)
+                {
+                    CityUser city = (CityUser)__instance.Hover!;
+                    if (city.Routes.Count > 0)
+                        city.Routes[0].Vehicle.OpenRoute(___scene);
+                }
+                else
+                    (__instance.Hover as CityUser)!.OpenHub(___scene);
+            }
         }
     }
 
