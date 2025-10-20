@@ -7,7 +7,11 @@
 - World view.
   - City names are colored based on how overcrowded their indirect capacity is. Red cities no longer accept indirect passengers.
   - (0.5) Resorts are marked with an umbrella icon.
-- (0.4) Improved vehicles tooltips.
+  - (0.6) RClick opens routes, w/ Shift opens a Hub.
+  - (0.6) Info about number of routes in a city available on the map.
+- InfoUI
+  - (0.4) Improved vehicles tooltips.
+  - (0.6) Button to close all floating windows at once.
 
 ### Explorers (new columns)
 - Countries. Average city level, how many cities are not connected to any lines.
@@ -16,7 +20,7 @@
   - (0.2) Filters and counters for city features and buildings.
   - (0.3) Number of unfulfilled destinations.
 - Lines.
-  - Num of cities, total length, throughput, (0.4) evaluation flag.
+  - Num of cities, total length, (0.6) line age, (0.4) evaluation flag.
   - (0.2) Search by Country.
   - (0.3) Mark lines that have >1 hub.
   - (0.5) New filters: empty, national, international, evaluated.
@@ -58,6 +62,10 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.6.0 (2025-10-20)
+  - RClick opens routes, w/ Shift opens a Hub.
+  - Info about number of routes in a city available on the map.
+  - Button to close all floating windows at once.
 - v0.5.1 (2025-10-19)
   - Fixed hub manager crashing when there is no brands selected.
 - v0.5.0 (2025-10-18)
