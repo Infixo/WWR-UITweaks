@@ -4,10 +4,12 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Floating;
+using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
+using UITweaks.UIFloating;
 
 namespace UITweaks.GameWorld;
 
@@ -30,7 +32,9 @@ internal static class UserSelection_Patches
             }
             if (__instance.Hover is CityUser)
             {
-                if (!___scene.Engine.Keys.Shift)
+                if (___scene.Engine.Keys.Ctrl)
+                    ___scene.Selection.AddUI(new InterestUI((CityUser)__instance.Hover, ___scene));
+                else if (!___scene.Engine.Keys.Shift)
                 {
                     GrowArray<VehicleBaseUser> vehicles = (__instance.Hover as CityUser)!.GetCityRoutesByVehicle();
                     for (int r = 0; r < vehicles.Count; r++)
