@@ -59,7 +59,8 @@ internal class InterestUI : IFloatUI
         Finalize();
         SetPinned(true);
         // events
-        base.Main_control.OnClose += () => DestroyArrows();
+        base.Main_control.OnUpdate += new Action(Update);
+        base.Main_control.OnClose += new Action(DestroyArrows);
     }
 
 
@@ -82,6 +83,7 @@ internal class InterestUI : IFloatUI
                 {
                     ui.Cities.Add(city);
                     ui.UpdateOriginCities(scrollToLast: true);
+                    ui.GenerateArrows();
                 }
                 return;
             }
@@ -109,10 +111,10 @@ internal class InterestUI : IFloatUI
         _toggle.Control.Margin_local = new FloatSpace(MainData.Size_button * 2, 0f);
         _grid.Transfer(_toggle.Control, 0, 0);
         _toggle.Label.Text = "Cities"; //(show_travelers ? Localization.GetGeneral("travelers") : Localization.GetInfrastructure("traffic"));
-        //_toggle.Control.OnButtonPress += (Action)delegate
-        //{
-            //ToggleBottom(_toggle.Label);
-        //};
+                                       //_toggle.Control.OnButtonPress += (Action)delegate
+                                       //{
+                                       //ToggleBottom(_toggle.Label);
+                                       //};
         _toggle.Control.OnMouseStillTime += (Action)delegate
         {
             GetToggleTooltip(_toggle.Control);
@@ -158,7 +160,7 @@ internal class InterestUI : IFloatUI
         //citiesControlCollection.Parent.Parent.dirty_size = true; // When this is true, then the slider always goes to the 1st city
         if (scrollToLast)
         {
-       
+
             float _pos = CitiesScrollHeight - MainData.Size_button - _y;
             if (_pos < 0)
             {
@@ -249,12 +251,15 @@ internal class InterestUI : IFloatUI
         //_button.use_multi_texture = true;
         //y += _button.Size_local_total.Y;
         citiesControlCollection.Transfer(_button);
+
+        // Remove city
         _button.OnButtonPress += (Action)delegate
         {
             citiesItems[city].CloseWithAnimation(close_if_no_animation: true);
             citiesItems.Remove(city);
             Cities.Remove(city);
             UpdateOriginCities();
+            GenerateArrows();
         };
         _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
         _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlLeft(_button);
@@ -413,29 +418,41 @@ internal class InterestUI : IFloatUI
         return true;
     }
 
-
-    // This must called to toggle on/off arrows on a cluster
     private void GenerateArrows()
     {
         DestroyArrows();
-        for (int j = 0; j < City.Destinations.Items.Count; j++)
+        foreach (CityUser city in Cities)
+            GenerateArrows(city);
+    }
+
+    private readonly Color DestinationColor = Color.LightGreen;
+    private readonly Color InterestColor = Color.LightBlue;
+    private readonly Color TwoWayColor = Color.Pink;
+
+    // This must called to toggle on/off arrows on a cluster
+    private void GenerateArrows(CityUser city)
+    {
+        for (int j = 0; j < city.Destinations.Items.Count; j++)
         {
-            arrows.Add(new PathArrow(City, City.Destinations.Items[j].Destination.User, new NewRouteSettings(-1), Scene));
-            arrows.Last.color = Color.Blue; // TODO!!!
-            arrows.Last.strength = City.Destinations.Items[j].Level;
-            int _id = City.Cities_interest.Find(City.Destinations.Items[j].Destination.User);
+            arrows.Add(new PathArrow(city, city.Destinations.Items[j].Destination.User, new NewRouteSettings(-1), Scene));
+            arrows.Last.color = DestinationColor;
+            //arrows.Last.strength = city.Destinations.Items[j].Level; // default is 1
+            int _id = city.Cities_interest.Find(city.Destinations.Items[j].Destination.User);
             if (_id >= 0)
             {
-                arrows.Last.strength += City.Cities_interest[_id].Destinations.GetLevel(City.City);
+                arrows.Last.color = TwoWayColor;
+                arrows.Add(new PathArrow(city.Destinations.Items[j].Destination.User, city, new NewRouteSettings(-1), Scene));
+                //arrows.Last.strength += city.Cities_interest[_id].Destinations.GetLevel(city.City);
+                arrows.Last.color = TwoWayColor;
             }
         }
-        for (int i = 0; i < City.Cities_interest.Count; i++)
+        for (int i = 0; i < city.Cities_interest.Count; i++)
         {
-            if (City.Destinations.GetLevel(City.Cities_interest[i].City) <= 0)
+            if (city.Destinations.GetLevel(city.Cities_interest[i].City) <= 0)
             {
-                arrows.Add(new PathArrow(City.Cities_interest[i], City, new NewRouteSettings(-1), Scene));
-                arrows.Last.color = Color.Pink; // TODO!!!
-                arrows.Last.strength = City.Cities_interest[i].Destinations.GetLevel(City.City);
+                arrows.Add(new PathArrow(city.Cities_interest[i], city, new NewRouteSettings(-1), Scene));
+                arrows.Last.color = InterestColor;
+                //arrows.Last.strength = city.Cities_interest[i].Destinations.GetLevel(city.City); // default is 1
             }
         }
         //UpdateArrowColors(); // This actually animates arrows
@@ -508,9 +525,9 @@ internal class InterestUI : IFloatUI
         _grid.Transfer(_price, 0, 0);
         _count.OnUpdate += (Action)delegate
         {
-                Label label2 = _dest;
-                Color color = (_count.Color = LabelPresets.Color_main);
-                label2.Color = color;
+            Label label2 = _dest;
+            Color color = (_count.Color = LabelPresets.Color_main);
+            label2.Color = color;
             _count.Text = StrConversions.CleanNumber(destination.People);
             _price.Text = "<!cicon_demand> " + StrConversions.CleanNumber((decimal)destination.Demand_price / 100.0m, 2);
             if (destination.Demand_price < 100)
@@ -651,6 +668,8 @@ internal class InterestUI : IFloatUI
         }
         //UpdateBottom(); // TODO: update cities if needed
         UpdateDestinations();
-        //UpdateArrowColors(); // TODO: arrow animations
+        // Animate arrows
+        for (int i = 0; i < arrows.Count; i++)
+            arrows[i].Update(Scene.Session.Delta, Scene);
     }
 }
