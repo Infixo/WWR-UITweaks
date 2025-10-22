@@ -20,9 +20,9 @@ internal class InterestUI : IFloatUI
     private readonly List<CityUser> Cities;
     internal CityUser City => Cities[0]; // TEMPORARY
     private ControlCollection citiesControlCollection;
-    private ScrollSettings citiesScrollSettings;
+    //private ScrollSettings citiesScrollSettings;
     private Dictionary<CityUser, IControl> citiesItems;
-    private IControl scroll;
+    private ScrollPreset? scrollPreset = null;
 
     // Destinations
     private ControlCollection destinations;
@@ -36,7 +36,7 @@ internal class InterestUI : IFloatUI
         // Origin cities
         Cities = [city];
         citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
-        citiesScrollSettings = new ScrollSettings();
+        //citiesScrollSettings = new ScrollSettings();
         citiesItems = [];
 
         // Destinations
@@ -90,13 +90,14 @@ internal class InterestUI : IFloatUI
         scene.Selection.AddUI(new InterestUI(city, scene));
     }
 
+    private const float CitiesScrollHeight = 200f;
 
     private void GetOriginCities()
     {
-        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, 304f, 1f), 1, 2, SizeType.Weight);
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 400f, CitiesScrollHeight, 1f), 1, 2, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
         _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content, 0f, 0f);
-        AddControl(_grid, "travelers");
+        AddControl(_grid, "cities");
         _grid.SetRow(0, SizeType.Pixels, MainData.Size_button);
         // Header?
         Label _header = LabelPresets.GetBold(Localization.GetGeneral("travelers"), Scene.Engine);
@@ -116,14 +117,20 @@ internal class InterestUI : IFloatUI
         {
             GetToggleTooltip(_toggle.Control);
         };
+
         // List of cities
         citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
         citiesControlCollection.horizontal_alignment = HorizontalAlignment.Stretch;
-        citiesScrollSettings = ContentPreset.GetScrollSettings();
-        citiesScrollSettings.history = "c_" + City.City.City_id + "ts";
-        scroll = ScrollPreset.GetVertical(ContentRectangle.Stretched, citiesControlCollection, citiesScrollSettings);
-        _grid.Transfer(scroll, 0, 1);
-        //items = new GrowArray<TravelersDest>();
+        ScrollSettings _settings = ContentPreset.GetScrollSettingsNoMargin();
+        _settings.history = "c_" + City.City.City_id + "ts";
+        //IControl _scroll = ScrollPreset.GetVertical(ContentRectangle.Stretched, citiesControlCollection, _settings); // oringal call
+        //new ScrollPreset(rectangle, child, settings, ScrollType.Vertical, on_scroll).main_control; // GetVertical
+        // ScrollPreset has private constructor and we need to store it to later access the vertical slider
+        scrollPreset = typeof(ScrollPreset).CallPrivateConstructor<ScrollPreset>(
+            [typeof(ContentRectangle), typeof(IControl), typeof(ScrollSettings), typeof(ScrollPreset.ScrollType), typeof(Action)], // arg types
+            [ContentRectangle.Stretched, citiesControlCollection, _settings, ScrollPreset.ScrollType.Vertical, null!]); // Action on_scroll is null
+        IControl _scroll = scrollPreset.GetPrivateField<ControlContainer>("main_control");
+        _grid.Transfer(_scroll, 0, 1);
         UpdateOriginCities();
     }
 
@@ -140,7 +147,6 @@ internal class InterestUI : IFloatUI
         //items.Sort(show_travelers ? new Func<TravelersDest, TravelersDest, bool>(Compare) : new Func<TravelersDest, TravelersDest, bool>(CompareTraffic));
         float _y = 0;
         foreach (CityUser city in Cities)
-        //for (int i = 0; i < citiesItems.Count; i++)
         {
             IControl cityItem = GetOriginCityItem(city);
             Animation _animation = AnimationPresets.Opacity(1f, 0.2f);
@@ -149,8 +155,17 @@ internal class InterestUI : IFloatUI
             _y += cityItem.Size_local_total.Y;
         }
         citiesControlCollection.Size_local = new Vector2(0f, _y);
-        citiesControlCollection.Parent.Parent.dirty_size = true;
-        citiesScrollSettings.focus(citiesItems[Cities[^1]]);
+        //citiesControlCollection.Parent.Parent.dirty_size = true; // When this is true, then the slider always goes to the 1st city
+        if (scrollToLast)
+        {
+       
+            float _pos = CitiesScrollHeight - MainData.Size_button - _y;
+            if (_pos < 0)
+            {
+                ScrollSlider _slider = scrollPreset!.GetPrivateField<ScrollSlider>("vertical");
+                _slider.CallPrivateMethodVoid("SetScrollPosY", [_pos]); // Position is the top of the child area relative to the view window, so when it is scrolled down, top is hidden and PosY < 0
+            }
+        }
     }
     /*
     private void UpdateTravelers()
@@ -242,35 +257,8 @@ internal class InterestUI : IFloatUI
             UpdateOriginCities();
         };
         _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
-        _button.OnMouseStillTime += (Action)delegate
-        {
-            TooltipPreset _tooltip = TooltipPreset.Get("Press to remove", Scene.Engine);
-            _tooltip.AddToControlRight(_button);
-        };
+        _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlLeft(_button);
 
-        // Main button with the city name TODO: this will be main "cluster" button
-        
-        //destinations.Transfer(_button);
-        //_button.Opacity = 0f;
-
-        // Panel
-        /*
-        Panel _panel = new Panel(new ContentRectangle(0f, y, 0f, MainData.Size_button, 1f), MainData.Panel_general);
-        _panel.horizontal_alignment = HorizontalAlignment.Stretch;
-        _panel.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
-        _panel.use_multi_texture = true;
-        //_panel.Opacity = 0f;
-        citiesControlCollection.Transfer(_panel);
-        ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
-        _panel.TransferContent(_collection);
-
-        // RClick - Remove city
-        _panel.OnMousePress += (Action)delegate
-        {
-            Cities.Remove(city);
-            UpdateOriginCities();
-        };
-        */
         // Name
         ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
         _button.TransferContent(_collection);
