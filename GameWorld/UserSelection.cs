@@ -33,7 +33,8 @@ internal static class UserSelection_Patches
             if (__instance.Hover is CityUser)
             {
                 if (___scene.Engine.Keys.Ctrl)
-                    ___scene.Selection.AddUI(new InterestUI((CityUser)__instance.Hover, ___scene));
+                    //___scene.Selection.AddUI(new InterestUI((CityUser)__instance.Hover, ___scene));
+                    InterestUI.OpenRegisterCity((CityUser)__instance.Hover, ___scene);
                 else if (!___scene.Engine.Keys.Shift)
                 {
                     GrowArray<VehicleBaseUser> vehicles = (__instance.Hover as CityUser)!.GetCityRoutesByVehicle();

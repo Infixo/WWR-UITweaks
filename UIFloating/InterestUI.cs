@@ -4,14 +4,11 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Floating;
+using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
 using STMG.Utility;
 using STVisual.Utility;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Utilities;
 
 namespace UITweaks.UIFloating;
@@ -19,24 +16,35 @@ namespace UITweaks.UIFloating;
 
 internal class InterestUI : IFloatUI
 {
-    // UI components
+    // Origin cities
+    private readonly List<CityUser> Cities;
+    internal CityUser City => Cities[0]; // TEMPORARY
+    private ControlCollection citiesControlCollection;
+    private ScrollSettings citiesScrollSettings;
+    private Dictionary<CityUser, IControl> citiesItems;
+    private IControl scroll;
+
+    // Destinations
     private ControlCollection destinations;
     private ScrollSettings destinations_scroll;
-
-    // Data
-    internal CityUser City => (CityUser)User;
     private GrowArray<CityUser> destinations_saved;
     private GrowArray<PathArrow> arrows;
 
 
-    internal InterestUI(CityUser city, GameScene scene) : base(city, scene)
+    internal InterestUI(CityUser city, GameScene scene) : base(null, scene)
     {
-        // UI
+        // Origin cities
+        Cities = [city];
+        citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
+        citiesScrollSettings = new ScrollSettings();
+        citiesItems = [];
+
+        // Destinations
         destinations = new ControlCollection(ContentRectangle.Zero);
         destinations_scroll = new ScrollSettings();
-        // Data
         destinations_saved = new GrowArray<CityUser>();
         arrows = new GrowArray<PathArrow>();
+
         // Build
         Construct();
     }
@@ -44,9 +52,12 @@ internal class InterestUI : IFloatUI
 
     private void Construct()
     {
-        AddHeader("<!cicon_city> " + City.Name);
+        AddHeader("Route Planner");
+        GetOriginCities();
+        EndBack();
         GetDestinations();
         Finalize();
+        SetPinned(true);
         // events
         base.Main_control.OnClose += () => DestroyArrows();
     }
@@ -56,6 +67,234 @@ internal class InterestUI : IFloatUI
     {
         EndBack();
         base.Main_control.Size_local = new Vector2(width, this.GetPrivateField<int>("height"));
+    }
+
+
+    public static void OpenRegisterCity(CityUser city, GameScene scene)
+    {
+        // Try to find already open window and add the city to it
+        for (int i = 0; i < scene.Selection.Floaters.Count; i++)
+            if (scene.Selection.Floaters[i] is InterestUI ui)
+            {
+                if (ui.Cities.Contains(city))
+                    MainData.Sound_error.Play();
+                else
+                {
+                    ui.Cities.Add(city);
+                    ui.UpdateOriginCities(scrollToLast: true);
+                }
+                return;
+            }
+
+        // Not open - create a new one
+        scene.Selection.AddUI(new InterestUI(city, scene));
+    }
+
+
+    private void GetOriginCities()
+    {
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, 304f, 1f), 1, 2, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content, 0f, 0f);
+        AddControl(_grid, "travelers");
+        _grid.SetRow(0, SizeType.Pixels, MainData.Size_button);
+        // Header?
+        Label _header = LabelPresets.GetBold(Localization.GetGeneral("travelers"), Scene.Engine);
+        _header.horizontal_alignment = HorizontalAlignment.Stretch;
+        _header.Opacity = 0.75f;
+        _grid.Transfer(_header, 0, 0);
+        // Button?
+        ButtonItem _toggle = ButtonPresets.TextGreenPulse(ContentRectangle.Stretched, "", Scene.Engine);
+        _toggle.Control.Margin_local = new FloatSpace(MainData.Size_button * 2, 0f);
+        _grid.Transfer(_toggle.Control, 0, 0);
+        _toggle.Label.Text = "Cities"; //(show_travelers ? Localization.GetGeneral("travelers") : Localization.GetInfrastructure("traffic"));
+        //_toggle.Control.OnButtonPress += (Action)delegate
+        //{
+            //ToggleBottom(_toggle.Label);
+        //};
+        _toggle.Control.OnMouseStillTime += (Action)delegate
+        {
+            GetToggleTooltip(_toggle.Control);
+        };
+        // List of cities
+        citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
+        citiesControlCollection.horizontal_alignment = HorizontalAlignment.Stretch;
+        citiesScrollSettings = ContentPreset.GetScrollSettings();
+        citiesScrollSettings.history = "c_" + City.City.City_id + "ts";
+        scroll = ScrollPreset.GetVertical(ContentRectangle.Stretched, citiesControlCollection, citiesScrollSettings);
+        _grid.Transfer(scroll, 0, 1);
+        //items = new GrowArray<TravelersDest>();
+        UpdateOriginCities();
+    }
+
+    private void GetToggleTooltip(IControl parent)
+    {
+        TooltipPreset tooltipPreset = TooltipPreset.Get(Localization.GetInfrastructure("traffic_toggle"), Scene.Engine, can_lock: true);
+        tooltipPreset.AddDescription(Localization.GetInfo("traffic"));
+        tooltipPreset.AddToControlAbove(parent);
+    }
+
+    private void UpdateOriginCities(bool scrollToLast = false)
+    {
+        //UpdateAllItems();
+        //items.Sort(show_travelers ? new Func<TravelersDest, TravelersDest, bool>(Compare) : new Func<TravelersDest, TravelersDest, bool>(CompareTraffic));
+        float _y = 0;
+        foreach (CityUser city in Cities)
+        //for (int i = 0; i < citiesItems.Count; i++)
+        {
+            IControl cityItem = GetOriginCityItem(city);
+            Animation _animation = AnimationPresets.Opacity(1f, 0.2f);
+            _animation.Add(AnimationPresets.Location(new Vector2(0f, _y), 0.2f));
+            cityItem.SetAnimation(_animation);
+            _y += cityItem.Size_local_total.Y;
+        }
+        citiesControlCollection.Size_local = new Vector2(0f, _y);
+        citiesControlCollection.Parent.Parent.dirty_size = true;
+        citiesScrollSettings.focus(citiesItems[Cities[^1]]);
+    }
+    /*
+    private void UpdateTravelers()
+    {
+        for (int l = 0; l < City.Destinations.Items.Count; l++)
+        {
+            if (City.Destinations.Items[l].People != 0)
+            {
+                GetOriginCityItem(City.Destinations.Items[l].Destination.User).direct += City.Destinations.Items[l].People;
+            }
+        }
+        for (int k = 0; k < City.Indirect.Count; k++)
+        {
+            if (City.Indirect[k].People != 0)
+            {
+                GetOriginCityItem(City.Indirect[k].Destination.User).indirect += City.Indirect[k].People;
+            }
+        }
+        for (int j = 0; j < City.Returns.Count; j++)
+        {
+            if (City.Returns[j].Ready != 0)
+            {
+                GetOriginCityItem(City.Returns[j].Home.User).going_home += City.Returns[j].Ready;
+            }
+        }
+        for (int i = citiesItems.Count - 1; i >= 0; i--)
+        {
+            if (!citiesItems[i].Valid())
+            {
+                citiesItems[i].Control.CloseWithAnimation(close_if_no_animation: true);
+                citiesItems.RemoveAt(i);
+            }
+        }
+    }*/
+    /*
+    private void UpdateAllItems()
+    {
+        for (int k = 0; k < City.Destinations.Items.Count; k++)
+        {
+            GetFromAllItems(City.Destinations.Items[k].Destination.User).direct += Math.Max(City.Destinations.Items[k].People, 1);
+        }
+        for (int j = 0; j < City.Indirect.Count; j++)
+        {
+            GetFromAllItems(City.Indirect[j].Destination.User).indirect += Math.Max(City.Indirect[j].People, 1);
+        }
+        for (int i = 0; i < City.Returns.Count; i++)
+        {
+            GetFromAllItems(City.Returns[i].Home.User).going_home += Math.Max(City.Returns[i].Ready, 1);
+        }
+    }
+
+    private TravelersDest GetFromAllItems(CityUser destination)
+    {
+        for (int i = 0; i < all_items.Count; i++)
+        {
+            if (all_items[i].Destination == destination)
+            {
+                return all_items[i];
+            }
+        }
+        TravelersDest _new = new TravelersDest(destination, null!);
+        all_items.Add(_new);
+        return _new;
+    }
+    */
+
+    private IControl GetOriginCityItem(CityUser city) //, ref float y)
+    {
+        // Cache
+        if (citiesItems.TryGetValue(city, out IControl? item))
+        {
+            //y += item.Size_local.Y;
+            return item;
+        }
+
+        // City button
+        ControlCollection _content;
+        Button _button = ButtonPresets.GetGeneral(new ContentRectangle(0f, 0f, 400f, MainData.Size_button, 1f), Scene.Engine, out _content);
+        _button.horizontal_alignment = HorizontalAlignment.Left;
+        _button.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
+        //_button.use_multi_texture = true;
+        //y += _button.Size_local_total.Y;
+        citiesControlCollection.Transfer(_button);
+        _button.OnButtonPress += (Action)delegate
+        {
+            citiesItems[city].CloseWithAnimation(close_if_no_animation: true);
+            citiesItems.Remove(city);
+            Cities.Remove(city);
+            UpdateOriginCities();
+        };
+        _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
+        _button.OnMouseStillTime += (Action)delegate
+        {
+            TooltipPreset _tooltip = TooltipPreset.Get("Press to remove", Scene.Engine);
+            _tooltip.AddToControlRight(_button);
+        };
+
+        // Main button with the city name TODO: this will be main "cluster" button
+        
+        //destinations.Transfer(_button);
+        //_button.Opacity = 0f;
+
+        // Panel
+        /*
+        Panel _panel = new Panel(new ContentRectangle(0f, y, 0f, MainData.Size_button, 1f), MainData.Panel_general);
+        _panel.horizontal_alignment = HorizontalAlignment.Stretch;
+        _panel.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
+        _panel.use_multi_texture = true;
+        //_panel.Opacity = 0f;
+        citiesControlCollection.Transfer(_panel);
+        ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
+        _panel.TransferContent(_collection);
+
+        // RClick - Remove city
+        _panel.OnMousePress += (Action)delegate
+        {
+            Cities.Remove(city);
+            UpdateOriginCities();
+        };
+        */
+        // Name
+        ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
+        _button.TransferContent(_collection);
+        city.City.GetCountry(Scene).Name.GetTranslation(Localization.Language);
+        Label _label = LabelPresets.GetDefault(city.GetNameWithIcon(Scene), Scene.Engine);
+        _label.Margin_local = new FloatSpace(MainData.Margin_content);
+        _collection.Transfer(_label);
+        _label = LabelPresets.GetBold("right", Scene.Engine, LabelPresets.Color_stats);
+        _label.horizontal_alignment = HorizontalAlignment.Right;
+        _label.Margin_local = new FloatSpace(MainData.Margin_content);
+        _collection.Transfer(_label);
+        // Info (e.g. travelers)
+        //TravelersDest _result = new TravelersDest(city, city, _panel);
+        citiesItems.Add(city, _button);
+        //_label.OnUpdate += (Action)delegate
+        //{
+        //_label.Text = "<!cicon_passenger> " + StrConversions.CleanNumber(_result.Total());
+        //};
+        //_panel.OnMouseStillTime += (Action)delegate
+        //{
+        //GetTravelerTooltip(_result);
+        //};
+        //y += _panel.Size_local.Y;
+        return _button;
     }
 
 
@@ -422,8 +661,8 @@ internal class InterestUI : IFloatUI
             }
             return;
         }
-        //UpdateArrowColors();
+        //UpdateBottom(); // TODO: update cities if needed
         UpdateDestinations();
-        //UpdateBottom();
+        //UpdateArrowColors(); // TODO: arrow animations
     }
 }
