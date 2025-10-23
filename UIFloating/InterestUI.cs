@@ -9,6 +9,7 @@ using STMG.UI.Control;
 using STMG.UI.Utility;
 using STMG.Utility;
 using STVisual.Utility;
+using System.Collections.Generic;
 using Utilities;
 
 namespace UITweaks.UIFloating;
@@ -32,6 +33,12 @@ public class CityCluster
     {
         Cities = [.. cities];
         ID = Cities[0].City.City_id;
+    }
+
+    public CityCluster(List<CityUser> cities, int id)
+    {
+        Cities = [.. cities];
+        ID = id;
     }
 
     public int GetID(CityUser city)
@@ -101,6 +108,8 @@ internal class InterestUI : IFloatUI
     //private ScrollSettings citiesScrollSettings;
     private Dictionary<CityUser, IControl> citiesItems;
     private ScrollPreset? scrollPreset = null;
+
+    // Destination cities
 
     // City clusters
     private readonly List<CityCluster> Clusters;
@@ -545,7 +554,7 @@ internal class InterestUI : IFloatUI
         for (int i = 0; i < city.Cities_interest.Count; i++)
         {
             CityUser _intr = city.Cities_interest[i];
-            if (!city.Destinations.CallPrivateMethod<bool>("Contains", [_intr.City]))
+            if (cluster.Contains(_intr) && !city.Destinations.CallPrivateMethod<bool>("Contains", [_intr.City]))
             {
                 arrows.Add(new PathArrow(_intr, city, new NewRouteSettings(-1), Scene));
                 arrows.Last.color = InterestColor;
@@ -788,16 +797,113 @@ internal class InterestUI : IFloatUI
                 destinations.Add(city.Cities_interest[i]);
         }
 
+        // Call DBSCAN
+        var dbscan = new DBSCAN(300f, 2); // 300km, min 2 cities in a cluster
+        var pointClusters = dbscan.Fit(destinations);
+
         // sort and split
-        var sorted = destinations.OrderBy(c => c.Name).ToList();
-        int batchSize = 5;
-        var batches = sorted
-            .Select((city, index) => new { city, index }) // assign index to each element
-            .GroupBy(x => x.index / batchSize)
-            .Select(g => g.Select(x => x.city).ToList()); // convert into a list of lists
+        //var sorted = destinations.OrderBy(c => c.Name).ToList();
+        //int batchSize = 5;
+        //var batches = sorted
+            //.Select((city, index) => new { city, index }) // assign index to each element
+            //.GroupBy(x => x.index / batchSize)
+            //.Select(g => g.Select(x => x.city).ToList()); // convert into a list of lists
 
         Clusters.RemoveAll(x => true);
-        foreach (List<CityUser> cityList in batches)
-            Clusters.Add(new CityCluster(cityList));
+        foreach (List<DBSCAN.Point> points in pointClusters)
+            Clusters.Add(new CityCluster([.. points.Select(x => x.City)], points[0].ClusterID));
+    }
+}
+
+
+public class DBSCAN
+{
+    public class Point
+    {
+        public CityUser City;
+        public int ClusterID; // 0 = unvisited, -1 = noise, >0 = cluster ID
+        public Point(CityUser city)
+        {
+            City = city;
+            ClusterID = 0;
+        }
+        public override string ToString() => $"{City} ({ClusterID})";
+    }
+
+    private double eps;
+    private int minPts;
+
+    public DBSCAN(double eps, int minPts)
+    {
+        this.eps = eps;
+        this.minPts = minPts;
+    }
+
+    public List<List<Point>> Fit(HashSet<CityUser> cities)
+    {
+        // prepare initial list
+        List<Point> points = [.. cities.Select(city => new Point(city))];
+
+        int clusterId = 0;
+
+        foreach (Point p in points)
+        {
+            if (p.ClusterID != 0)
+                continue; // already visited
+
+            List<Point> neighbors = GetNeighbors(p, points);
+
+            if (neighbors.Count < minPts)
+            {
+                p.ClusterID = -1; // mark as noise
+                continue;
+            }
+
+            clusterId++;
+            ExpandCluster(p, neighbors, clusterId, points);
+        }
+
+        // Group by cluster ID and return list of clusters
+        return points
+            //.Where(p => p.ClusterID > 0)
+            .GroupBy(p => p.ClusterID)
+            .Select(g => g.ToList())
+            .ToList();
+    }
+
+    private void ExpandCluster(Point p, List<Point> neighbors, int clusterId, List<Point> points)
+    {
+        p.ClusterID = clusterId;
+
+        var queue = new Queue<Point>(neighbors);
+        while (queue.Count > 0)
+        {
+            var q = queue.Dequeue();
+
+            if (q.ClusterID == -1)
+                q.ClusterID = clusterId;
+
+            if (q.ClusterID != 0)
+                continue;
+
+            q.ClusterID = clusterId;
+
+            var qNeighbors = GetNeighbors(q, points);
+            if (qNeighbors.Count >= minPts)
+            {
+                foreach (var n in qNeighbors)
+                    queue.Enqueue(n);
+            }
+        }
+    }
+
+    private List<Point> GetNeighbors(Point p, List<Point> points)
+    {
+        return [.. points.Where(other => Distance(p, other) <= eps)];
+    }
+
+    private static double Distance(Point a, Point b)
+    {
+        return GameScene.GetDistance(a.City, b.City);
     }
 }
