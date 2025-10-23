@@ -14,18 +14,97 @@ using Utilities;
 namespace UITweaks.UIFloating;
 
 
+public class CityCluster
+{
+    public int ID { get; private set; }
+
+    public CityUser MainCity => Cities[0];
+
+    public CityUser[] Cities { get; private set; }
+
+    public CityCluster(CityUser city)
+    {
+        Cities = [city];
+        ID = Cities[0].City.City_id;
+    }
+
+    public CityCluster(List<CityUser> cities)
+    {
+        Cities = [.. cities];
+        ID = Cities[0].City.City_id;
+    }
+
+    public int GetID(CityUser city)
+    {
+        for (int i = 0; i < Cities.Length; i++)
+        {
+            if (Cities[i] == city)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public bool Same(Route route)
+    {
+        if (Cities.Length != route.Cities.Length)
+        {
+            return false;
+        }
+        for (int i = 0; i < Cities.Length; i++)
+        {
+            if (Cities[i] != route.Cities[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public bool Contains(CityUser city) => Cities.Contains(city);
+
+    public override string ToString()
+    {
+        string _result = ID + ".";
+        for (int i = 0; i < Cities.Length; i++)
+            _result += Cities[i].ToString() + ".";
+        return _result;
+    }
+
+    public double GetLongestDistance()
+    {
+        if (Cities.Length < 2)
+        {
+            return 0.0;
+        }
+        double _distance = 0.0;
+        for (int i = 1; i < Cities.Length; i++)
+        {
+            double _dist = GameScene.GetDistance(Cities[i - 1], Cities[i]);
+            if (_dist > _distance)
+            {
+                _distance = _dist;
+            }
+        }
+        return _distance;
+    }
+}
+
+
 internal class InterestUI : IFloatUI
 {
     // Origin cities
     private readonly List<CityUser> Cities;
     internal CityUser City => Cities[0]; // TEMPORARY
-    private ControlCollection citiesControlCollection;
+    private ControlCollection citiesCollection;
     //private ScrollSettings citiesScrollSettings;
     private Dictionary<CityUser, IControl> citiesItems;
     private ScrollPreset? scrollPreset = null;
 
-    // Destinations
-    private ControlCollection destinations;
+    // City clusters
+    private readonly List<CityCluster> Clusters;
+    private ControlCollection clustersCollection;
     private ScrollSettings destinations_scroll;
     private GrowArray<CityUser> destinations_saved;
     private GrowArray<PathArrow> arrows;
@@ -35,12 +114,13 @@ internal class InterestUI : IFloatUI
     {
         // Origin cities
         Cities = [city];
-        citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
+        citiesCollection = new ControlCollection(ContentRectangle.Zero);
         //citiesScrollSettings = new ScrollSettings();
         citiesItems = [];
 
-        // Destinations
-        destinations = new ControlCollection(ContentRectangle.Zero);
+        // City clusters
+        Clusters = [];
+        clustersCollection = new ControlCollection(ContentRectangle.Zero);
         destinations_scroll = new ScrollSettings();
         destinations_saved = new GrowArray<CityUser>();
         arrows = new GrowArray<PathArrow>();
@@ -55,7 +135,7 @@ internal class InterestUI : IFloatUI
         AddHeader("Route Planner");
         GetOriginCities();
         EndBack();
-        GetDestinations();
+        GetCityClusters();
         Finalize();
         SetPinned(true);
         // events
@@ -71,6 +151,16 @@ internal class InterestUI : IFloatUI
     }
 
 
+    public void RegisterCity(CityUser city)
+    {
+        Cities.Add(city);
+        UpdateOriginCities(scrollToLast: true);
+        GenerateClusters();
+        UpdateCityClusters();
+        //GenerateArrows();
+    }
+
+
     public static void OpenRegisterCity(CityUser city, GameScene scene)
     {
         // Try to find already open window and add the city to it
@@ -80,17 +170,14 @@ internal class InterestUI : IFloatUI
                 if (ui.Cities.Contains(city))
                     MainData.Sound_error.Play();
                 else
-                {
-                    ui.Cities.Add(city);
-                    ui.UpdateOriginCities(scrollToLast: true);
-                    ui.GenerateArrows();
-                }
+                    ui.RegisterCity(city);
                 return;
             }
 
         // Not open - create a new one
         scene.Selection.AddUI(new InterestUI(city, scene));
     }
+
 
     private const float CitiesScrollHeight = 200f;
 
@@ -121,8 +208,8 @@ internal class InterestUI : IFloatUI
         };
 
         // List of cities
-        citiesControlCollection = new ControlCollection(ContentRectangle.Zero);
-        citiesControlCollection.horizontal_alignment = HorizontalAlignment.Stretch;
+        citiesCollection = new ControlCollection(ContentRectangle.Zero);
+        citiesCollection.horizontal_alignment = HorizontalAlignment.Stretch;
         ScrollSettings _settings = ContentPreset.GetScrollSettingsNoMargin();
         _settings.history = "c_" + City.City.City_id + "ts";
         //IControl _scroll = ScrollPreset.GetVertical(ContentRectangle.Stretched, citiesControlCollection, _settings); // oringal call
@@ -130,7 +217,7 @@ internal class InterestUI : IFloatUI
         // ScrollPreset has private constructor and we need to store it to later access the vertical slider
         scrollPreset = typeof(ScrollPreset).CallPrivateConstructor<ScrollPreset>(
             [typeof(ContentRectangle), typeof(IControl), typeof(ScrollSettings), typeof(ScrollPreset.ScrollType), typeof(Action)], // arg types
-            [ContentRectangle.Stretched, citiesControlCollection, _settings, ScrollPreset.ScrollType.Vertical, null!]); // Action on_scroll is null
+            [ContentRectangle.Stretched, citiesCollection, _settings, ScrollPreset.ScrollType.Vertical, null!]); // Action on_scroll is null
         IControl _scroll = scrollPreset.GetPrivateField<ControlContainer>("main_control");
         _grid.Transfer(_scroll, 0, 1);
         UpdateOriginCities();
@@ -156,7 +243,7 @@ internal class InterestUI : IFloatUI
             cityItem.SetAnimation(_animation);
             _y += cityItem.Size_local_total.Y;
         }
-        citiesControlCollection.Size_local = new Vector2(0f, _y);
+        citiesCollection.Size_local = new Vector2(0f, _y);
         //citiesControlCollection.Parent.Parent.dirty_size = true; // When this is true, then the slider always goes to the 1st city
         if (scrollToLast)
         {
@@ -250,7 +337,7 @@ internal class InterestUI : IFloatUI
         _button.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
         //_button.use_multi_texture = true;
         //y += _button.Size_local_total.Y;
-        citiesControlCollection.Transfer(_button);
+        citiesCollection.Transfer(_button);
 
         // Remove city
         _button.OnButtonPress += (Action)delegate
@@ -259,7 +346,9 @@ internal class InterestUI : IFloatUI
             citiesItems.Remove(city);
             Cities.Remove(city);
             UpdateOriginCities();
-            GenerateArrows();
+            GenerateClusters();
+            UpdateCityClusters();
+            //GenerateArrows();
         };
         _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
         _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlLeft(_button);
@@ -291,7 +380,7 @@ internal class InterestUI : IFloatUI
     }
 
 
-    private void GetDestinations()
+    private void GetCityClusters()
     {
         ControlCollection _content = new ControlCollection(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f));
         _content.horizontal_alignment = HorizontalAlignment.Stretch;
@@ -303,11 +392,11 @@ internal class InterestUI : IFloatUI
         _label.Opacity = 0.75f;
         _content.Transfer(_label);
         // Scroll area
-        destinations = new ControlCollection(ContentRectangle.Zero);
-        destinations.horizontal_alignment = HorizontalAlignment.Stretch;
+        clustersCollection = new ControlCollection(ContentRectangle.Zero);
+        clustersCollection.horizontal_alignment = HorizontalAlignment.Stretch;
         destinations_scroll = ContentPreset.GetScrollSettingsNoMargin();
         destinations_scroll.history = "c_" + City.City.City_id + "ds";
-        IControl _scroll = ScrollPreset.GetVertical(new ContentRectangle(0f, 0f, 0f, 300f, 1f), destinations, destinations_scroll);
+        IControl _scroll = ScrollPreset.GetVertical(new ContentRectangle(0f, 0f, 0f, 300f, 1f), clustersCollection, destinations_scroll);
         _scroll.horizontal_alignment = HorizontalAlignment.Stretch;
         _scroll.Margin_local = new FloatSpace(MainData.Margin_content, 0f, MainData.Margin_content, MainData.Margin_content);
         AddControl(_scroll, "destinations");
@@ -321,39 +410,39 @@ internal class InterestUI : IFloatUI
         //{
         //ButtonPresets.OpenDropdown(_sort, GetSortOptions, Scene.Engine);
         //};
-        UpdateDestinations();
+        GenerateClusters(); // initial city
+        UpdateCityClusters();
     }
 
 
     // TODO: Not sure if update is so needed, the feature is rather for slow analysis
-    private void UpdateDestinations()
+    private void UpdateCityClusters()
     {
-        if (DestinationsSame())
-        {
+        //if (DestinationsSame())
+        //{
             // Sorting logic
             //for (int i = 0; i < sort_buffer.Count; i++)
             //{
             //sort_buffer.Items[i].fullfilment = (float)City.Destinations.Items[sort_buffer.Items[i].destination].Percent;
             //}
             //SortDestinations();
-            return;
-        }
-        GenerateArrows();
-        float _y = destinations.Size_local.Y;
-        if (destinations_saved.Count < City.Destinations.Items.Count)
+            //return;
+        //}
+        //GenerateArrows();
+        clustersCollection.Clear();
+        float _y = 0f;
+        foreach(CityCluster cluster in Clusters)
         {
-            for (int m = destinations.Count; m < City.Destinations.Items.Count; m++)
-            {
-                destinations_saved.Add(City.Destinations.Items[m].Destination.User);
-                AddDestinationItem(City.Destinations.Items[m], ref _y); //, City.Last_destination <= m);
-            }
+            //destinations_saved.Add(City.Destinations.Items[m].Destination.User);
+            AddCityClusterItem(cluster, ref _y); //, City.Last_destination <= m);
         }
+        /*
         else if (destinations_saved.Count > City.Destinations.Items.Count)
         {
-            IControl _item = destinations[destinations.Count - 1];
+            IControl _item = clustersCollection[clustersCollection.Count - 1];
             _y -= _item.Size_local_total.Y;
             _item.CloseWithAnimation(close_if_no_animation: true);
-            destinations.Remove(_item);
+            clustersCollection.Remove(_item);
             destinations_saved.RemoveAt(destinations_saved.Count - 1);
         }
         else
@@ -363,15 +452,15 @@ internal class InterestUI : IFloatUI
             {
                 if (destinations_saved[l] != City.Destinations.Items[l].Destination.User)
                 {
-                    destinations[l].CloseWithAnimation(close_if_no_animation: true);
+                    clustersCollection[l].CloseWithAnimation(close_if_no_animation: true);
                     destinations_saved[l] = City.Destinations.Items[l].Destination.User;
-                    AddDestinationItem(City.Destinations.Items[l], ref _y); //, new_animation: true);
+                    AddCityClusterItem(City.Destinations.Items[l], ref _y); //, new_animation: true);
                 }
-                _y += destinations[l].Size_local_total.Y;
+                _y += clustersCollection[l].Size_local_total.Y;
             }
-        }
-        destinations.Size_local = new Vector2(0f, _y);
-        destinations.Parent.Parent.dirty_size = true;
+        }*/
+        clustersCollection.Size_local = new Vector2(0f, _y);
+        clustersCollection.Parent.Parent.dirty_size = true;
         // Sorting logc - TODO perhaps could reuse?
         //sort_buffer = new GrowArray<DestinationLink>(City.Destinations.Items.Count);
         //for (int k = 0; k < City.Destinations.Items.Count; k++)
@@ -380,24 +469,26 @@ internal class InterestUI : IFloatUI
         //}
         //SortDestinations();
         // TODO: Not sure what Highlight does
+        /*
         if (!City.Highlight)
         {
             return;
         }
-        if (destinations.Ui == null)
+        if (clustersCollection.Ui == null)
         {
-            destinations.OnSizeChange += (Action)delegate
+            clustersCollection.OnSizeChange += (Action)delegate
             {
-                destinations.OnSizeChange.Clear();
-                destinations_scroll.focus(destinations.Items[destinations.Count - 1]);
+                clustersCollection.OnSizeChange.Clear();
+                destinations_scroll.focus(clustersCollection.Items[clustersCollection.Count - 1]);
             };
         }
         else
         {
-            destinations.Parent.Parent.UpdateSize();
-            destinations_scroll.focus(destinations.Items[destinations.Count - 1]);
+            clustersCollection.Parent.Parent.UpdateSize();
+            destinations_scroll.focus(clustersCollection.Items[clustersCollection.Count - 1]);
         }
         City.DisableHighlight();
+        */
         //}
     }
 
@@ -418,11 +509,11 @@ internal class InterestUI : IFloatUI
         return true;
     }
 
-    private void GenerateArrows()
+    private void GenerateArrows(CityCluster cluster)
     {
         DestroyArrows();
         foreach (CityUser city in Cities)
-            GenerateArrows(city);
+            GenerateArrows(city, cluster);
     }
 
     private readonly Color DestinationColor = Color.LightGreen;
@@ -430,32 +521,36 @@ internal class InterestUI : IFloatUI
     private readonly Color TwoWayColor = Color.Pink;
 
     // This must called to toggle on/off arrows on a cluster
-    private void GenerateArrows(CityUser city)
+    private void GenerateArrows(CityUser city, CityCluster cluster)
     {
+        // Arrows to the cluster and two-ways
         for (int j = 0; j < city.Destinations.Items.Count; j++)
         {
-            arrows.Add(new PathArrow(city, city.Destinations.Items[j].Destination.User, new NewRouteSettings(-1), Scene));
-            arrows.Last.color = DestinationColor;
-            //arrows.Last.strength = city.Destinations.Items[j].Level; // default is 1
-            int _id = city.Cities_interest.Find(city.Destinations.Items[j].Destination.User);
-            if (_id >= 0)
-            {
-                arrows.Last.color = TwoWayColor;
-                arrows.Add(new PathArrow(city.Destinations.Items[j].Destination.User, city, new NewRouteSettings(-1), Scene));
-                //arrows.Last.strength += city.Cities_interest[_id].Destinations.GetLevel(city.City);
-                arrows.Last.color = TwoWayColor;
+            CityUser _dest = city.Destinations.Items[j].Destination.User;
+            if (cluster.Contains(_dest))
+                {
+                arrows.Add(new PathArrow(city, _dest, new NewRouteSettings(-1), Scene));
+                arrows.Last.color = DestinationColor;
+                //arrows.Last.strength = city.Destinations.Items[j].Level; // default is 1
+                int _id = city.Cities_interest.Find(_dest);
+                if (_id >= 0)
+                {
+                    arrows.Last.color = TwoWayColor;
+                    arrows.Add(new PathArrow(_dest, city, new NewRouteSettings(-1), Scene));
+                    arrows.Last.color = TwoWayColor;
+                }
             }
         }
+        // Arrows from the cluster
         for (int i = 0; i < city.Cities_interest.Count; i++)
         {
-            if (city.Destinations.GetLevel(city.Cities_interest[i].City) <= 0)
+            CityUser _intr = city.Cities_interest[i];
+            if (!city.Destinations.CallPrivateMethod<bool>("Contains", [_intr.City]))
             {
-                arrows.Add(new PathArrow(city.Cities_interest[i], city, new NewRouteSettings(-1), Scene));
+                arrows.Add(new PathArrow(_intr, city, new NewRouteSettings(-1), Scene));
                 arrows.Last.color = InterestColor;
-                //arrows.Last.strength = city.Cities_interest[i].Destinations.GetLevel(city.City); // default is 1
             }
         }
-        //UpdateArrowColors(); // This actually animates arrows
     }
 
 
@@ -469,42 +564,44 @@ internal class InterestUI : IFloatUI
     }
 
 
-    private void AddDestinationItem(CityDestination destination, ref float y)
+    private void AddCityClusterItem(CityCluster cluster, ref float y)
     {
         // Main button with the city name TODO: this will be main "cluster" button
-        ControlCollection _content;
-        Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f), Scene.Engine, out _content);
+        // Design:       [core city] [info]
+        //               [city names] (scrolling if possible)
+        Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f), Scene.Engine, out ControlCollection _content);
+        y += _button.Size_local_total.Y;
         _button.horizontal_alignment = HorizontalAlignment.Stretch;
         _button.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content / 2);
         _button.use_multi_texture = true;
-        destinations.Transfer(_button);
-        y += _button.Size_local_total.Y;
+        clustersCollection.Transfer(_button);
+        // TODO: not sure what press should do? go to main city?
         _button.OnButtonPress += (Action)delegate
         {
-            if (Scene.tracking == destination.Destination.User)
-            {
-                destination.Destination.User.Select(Scene, track: true);
-            }
-            else
-            {
-                Scene.tracking = destination.Destination.User;
-            }
+            GenerateArrows(cluster);
+            //if (Scene.tracking == cluster.MainCity)
+                //cluster.MainCity.Select(Scene, track: true);
+            //else
+                //Scene.tracking = cluster.MainCity;
         };
+        // TODO: this should generate arrows for a cluster
         _button.OnMouseStillTime += (Action)delegate
         {
-            GetDestinationTooltip(_button, destination);
+            GenerateArrows(cluster);
+            //GetDestinationTooltip(_button, cluster);
         };
+        _button.OnMouseLeave += () => DestroyArrows();
         //_button.Opacity = 0f;
 
         // Grid 2x2 in the main button
         Grid _grid = new Grid(ContentRectangle.Stretched, 2, 2, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items);
+        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items/2);
         _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button * 2);
         _content.Transfer(_grid);
 
         // City name
-        string _text = destination.Destination.User.GetNameWithIcon(Scene);
+        string _text = cluster.MainCity.GetNameWithIcon(Scene);
         Label _dest = LabelPresets.GetBold(_text, Scene.Engine);
         _dest.Margin_local = new FloatSpace(MainData.Margin_content);
         _grid.Transfer(_dest, 0, 0);
@@ -515,88 +612,90 @@ internal class InterestUI : IFloatUI
         //_passenger.Opacity = 0.25f;
         //_grid.Transfer(_passenger, 1, 0, 1, 2);
         // Number of people TODO: number of people wanting to come here (destinations) - probably NOT indirect - analysis must be based on RAW demand
-        Label _count = LabelPresets.GetBold("", Scene.Engine, LabelPresets.Color_stats);
+        Label _count = LabelPresets.GetBold($"<!cicon_star>{cluster.MainCity.Level.ToString()}", Scene.Engine, LabelPresets.Color_stats);
         _count.horizontal_alignment = HorizontalAlignment.Center;
         _grid.Transfer(_count, 1, 0, 1, 2);
         // Price ?? TODO could use for cluster info like Distance, num, etc.
-        Label _price = LabelPresets.GetBold("", Scene.Engine, LabelPresets.Color_positive);
+        Label _price = LabelPresets.GetBold("info", Scene.Engine, LabelPresets.Color_positive);
         _price.horizontal_alignment = HorizontalAlignment.Right;
         _price.Margin_local = new FloatSpace(MainData.Margin_content);
         _grid.Transfer(_price, 0, 0);
+        /*
         _count.OnUpdate += (Action)delegate
         {
             Label label2 = _dest;
             Color color = (_count.Color = LabelPresets.Color_main);
             label2.Color = color;
-            _count.Text = StrConversions.CleanNumber(destination.People);
-            _price.Text = "<!cicon_demand> " + StrConversions.CleanNumber((decimal)destination.Demand_price / 100.0m, 2);
-            if (destination.Demand_price < 100)
+            _count.Text = StrConversions.CleanNumber(cluster.People);
+            _price.Text = "<!cicon_demand> " + StrConversions.CleanNumber((decimal)cluster.Demand_price / 100.0m, 2);
+            if (cluster.Demand_price < 100)
             {
-                float num2 = (float)(destination.Demand_price - MainData.Defaults.Demand_price_min) / (float)(100 - MainData.Defaults.Demand_price_min);
+                float num2 = (float)(cluster.Demand_price - MainData.Defaults.Demand_price_min) / (float)(100 - MainData.Defaults.Demand_price_min);
                 _price.Color = LabelPresets.Color_negative.Lerp(LabelPresets.Color_positive, num2 * num2 * num2);
             }
             else
             {
-                float percent = (float)(destination.Demand_price - 100) / (float)(MainData.Defaults.Demand_price_max - 100);
+                float percent = (float)(cluster.Demand_price - 100) / (float)(MainData.Defaults.Demand_price_max - 100);
                 _price.Color = LabelPresets.Color_positive.Lerp(LabelPresets.Color_link, percent);
             }
-        };
+        };*/
 
         // Bottom row - level graphics TODO: list of cities in the cluster with some basic info?
         ControlCollection _level = new ControlCollection(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f));
         _level.horizontal_alignment = HorizontalAlignment.Stretch;
         _level.Mouse_visible = false;
         _grid.Transfer(_level, 0, 1);
-        Panel _fill = new Panel(ContentRectangle.Stretched, MainData.Panel_fill_box_back);
-        _fill.use_multi_texture = true;
-        _fill.Mouse_visible = false;
-        _level.Transfer(_fill);
-        Label _label = LabelPresets.GetDefault(Localization.GetCity("fulfillment"), Scene.Engine);
+        //Panel _fill = new Panel(ContentRectangle.Stretched, MainData.Panel_fill_box_back);
+        //_fill.use_multi_texture = true;
+        //_fill.Mouse_visible = false;
+        //_level.Transfer(_fill);
+        Label _label = LabelPresets.GetDefault(cluster.ToString(), Scene.Engine);
         _label.Margin_local = new FloatSpace(MainData.Margin_content);
         _label.Color *= 0.5f;
         _level.Transfer(_label);
-        Image _last = new Image(new ContentRectangle(0f, 0f, 4f, 0f, 1f), MainData.Panel_empty);
-        _last.vertical_alignment = VerticalAlignment.Stretch;
-        _last.Color = Color.Black * 0.5f;
-        _level.Transfer(_last);
-        Label _count_a = LabelPresets.GetBold("", Scene.Engine);
+        //Image _last = new Image(new ContentRectangle(0f, 0f, 4f, 0f, 1f), MainData.Panel_empty);
+        //_last.vertical_alignment = VerticalAlignment.Stretch;
+        //_last.Color = Color.Black * 0.5f;
+        //_level.Transfer(_last);
+        Label _count_a = LabelPresets.GetBold("info", Scene.Engine);
         _count_a.horizontal_alignment = HorizontalAlignment.Right;
         _count_a.Margin_local = new FloatSpace(MainData.Margin_content);
         _level.Transfer(_count_a);
-        _fill = new Panel(ContentRectangle.Zero, MainData.Panel_fill_box);
-        _fill.vertical_alignment = VerticalAlignment.Stretch;
-        _fill.use_multi_texture = true;
-        _fill.Opacity = 0f;
-        _fill.Mouse_visible = false;
-        _level.Transfer(_fill);
-        ControlContainer _fill_container = new ControlContainer(ContentRectangle.Stretched);
-        _fill_container.Use_scissors = true;
-        _fill_container.mouse_pass = false;
-        _fill.TransferContent(_fill_container);
-        ControlCollection _fill_collection = new ControlCollection(ContentRectangle.Stretched);
-        _fill_container.TransferContent(_fill_collection);
-        _label = LabelPresets.GetDefault(Localization.GetCity("fulfillment"), Scene.Engine, LabelPresets.Color_secondary);
-        _label.Margin_local = new FloatSpace(MainData.Margin_content);
-        _label.Color *= 0.75f;
-        _fill_collection.Transfer(_label);
-        Label _count_b = LabelPresets.GetBold("", Scene.Engine, LabelPresets.Color_secondary);
-        _count.Margin_local = new FloatSpace(MainData.Margin_content);
-        _fill_collection.Transfer(_count_b);
-        float _p = (float)destination.Percent;
+        //_fill = new Panel(ContentRectangle.Zero, MainData.Panel_fill_box);
+        //_fill.vertical_alignment = VerticalAlignment.Stretch;
+        //_fill.use_multi_texture = true;
+        //_fill.Opacity = 0f;
+        //_fill.Mouse_visible = false;
+        //_level.Transfer(_fill);
+        //ControlContainer _fill_container = new ControlContainer(ContentRectangle.Stretched);
+        //_fill_container.Use_scissors = true;
+        //_fill_container.mouse_pass = false;
+        //_fill.TransferContent(_fill_container);
+        //ControlCollection _fill_collection = new ControlCollection(ContentRectangle.Stretched);
+        //_fill_container.TransferContent(_fill_collection);
+        //_label = LabelPresets.GetDefault(Localization.GetCity("fulfillment"), Scene.Engine, LabelPresets.Color_secondary);
+        //_label.Margin_local = new FloatSpace(MainData.Margin_content);
+        //_label.Color *= 0.75f;
+        //_fill_collection.Transfer(_label);
+        //Label _count_b = LabelPresets.GetBold("infoB", Scene.Engine, LabelPresets.Color_secondary);
+        //_count.Margin_local = new FloatSpace(MainData.Margin_content);
+        //_fill_collection.Transfer(_count_b);
+        //float _p = (float)cluster.Percent;
+        /*
         _level.OnUpdate += (Action)delegate
         {
             _last.Location_local = new Vector2(0f, 0f); // new Vector2(Math.Clamp(num, 0f, _level.Size_local.X - _last.Size_local.X), 0f);
             _last.Opacity = Math.Clamp(0f / 10f, 0.5f, 1f);
             _last.Color = LabelPresets.Color_negative * 0.5f;
 
-            _p = _p * 0.75f + (float)destination.Percent * 0.25f;
+            _p = _p * 0.75f + (float)cluster.Percent * 0.25f;
             _fill.Size_local = new Vector2(_level.Size_local.X * _p, 0f);
-            _count_a.Text = StrConversions.Percent((float)destination.Percent);
+            _count_a.Text = StrConversions.Percent((float)cluster.Percent);
             _count_b.Text = _count_a.Text;
             _count_b.Location_local = new Vector2(_level.Size_local.X - (float)MainData.Margin_content - _count_b.Size_local_total.X, 0f);
-            if (destination.Tourism != 0)
+            if (cluster.Tourism != 0)
             {
-                _dest.Text = _text + " <!#" + LabelPresets.Color_positive.GetHex() + ">" + StrConversions.PercentChange((float)destination.Tourism / 100f);
+                _dest.Text = _text + " <!#" + LabelPresets.Color_positive.GetHex() + ">" + StrConversions.PercentChange((float)cluster.Tourism / 100f);
             }
             else
             {
@@ -614,7 +713,7 @@ internal class InterestUI : IFloatUI
             {
                 _fill.Opacity = 1f;
             }
-        };
+        };*/
     }
 
 
@@ -667,9 +766,38 @@ internal class InterestUI : IFloatUI
             return;
         }
         //UpdateBottom(); // TODO: update cities if needed
-        UpdateDestinations();
+        //UpdateCityClusters();
         // Animate arrows
         for (int i = 0; i < arrows.Count; i++)
             arrows[i].Update(Scene.Session.Delta, Scene);
+    }
+
+
+    // GENERATE CLUSTERS - CORE DBSCAN ALGORITHM
+    private void GenerateClusters()
+    {
+        // temporary stub - get all connected cities, sort alphabetically and divide into clusters of 5 cities
+
+        // get all unique cities
+        HashSet<CityUser> destinations = [];
+        foreach (CityUser city in Cities)
+        {
+            for (int j = 0; j < city.Destinations.Items.Count; j++)
+                destinations.Add(city.Destinations.Items[j].Destination.User);
+            for (int i = 0; i < city.Cities_interest.Count; i++)
+                destinations.Add(city.Cities_interest[i]);
+        }
+
+        // sort and split
+        var sorted = destinations.OrderBy(c => c.Name).ToList();
+        int batchSize = 5;
+        var batches = sorted
+            .Select((city, index) => new { city, index }) // assign index to each element
+            .GroupBy(x => x.index / batchSize)
+            .Select(g => g.Select(x => x.city).ToList()); // convert into a list of lists
+
+        Clusters.RemoveAll(x => true);
+        foreach (List<CityUser> cityList in batches)
+            Clusters.Add(new CityCluster(cityList));
     }
 }
