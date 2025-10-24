@@ -350,13 +350,41 @@ internal class InterestUI : IFloatUI
     private void GenerateArrows(CityCluster cluster)
     {
         DestroyArrows();
-        foreach (CityUser city in Cities)
-            GenerateArrows(city, cluster);
+        if (cluster.ID > 0)
+        {
+            // NEW LOGIC - show main city and intra-cluster
+            // MainCity
+            foreach (CityUser city in Cities)
+                GenerateArrow(city, cluster.MainCity);
+
+            // Cluster connections
+            foreach (CityUser cc in cluster.Cities.Where(x => x != cluster.MainCity))
+                GenerateArrow(cc, cluster.MainCity);
+        }
+        else
+        {
+            if (Cities.Count == 0) return;
+            Color arrowColor = cluster.ID == -1 ? SinglesColor : CloseCitiesColor;
+            CityUser mainCity = Cities[0];
+            foreach (CityUser cc in cluster.Cities)
+                AddArrow(cc, mainCity, arrowColor);
+                //GenerateArrow(city, cluster.MainCity);
+        }
     }
 
-    private readonly Color DestinationColor = Color.LightGreen;
-    private readonly Color InterestColor = Color.LightBlue;
-    private readonly Color TwoWayColor = Color.Pink;
+    private void AddArrow(CityUser origin, CityUser destination, Color color)
+    {
+        arrows.Add(new PathArrow(origin, destination, new NewRouteSettings(-1), Scene));
+        arrows.Last.color = color;
+    }
+
+    private readonly Color CloseCitiesColor = Color.LightGray; // cities not analyzed
+    private readonly Color SinglesColor = Color.Orange; // cities not in a cluster
+    private readonly Color ConnectionColor = Color.Green; // route and interest - best combo
+    private readonly Color InterestColor = Color.Pink; // there is interest between cities, but no direct route
+    private readonly Color DirectRouteColor = Color.Blue; // there is route, but no interest
+    private readonly Color NoConnectionColor = Color.Yellow; // cities in a cluster not connected to the MainCity directly
+    // TODO: later could add indirect too
 
     // This must called to toggle on/off arrows on a cluster
     private void GenerateArrows(CityUser city, CityCluster cluster)
@@ -368,14 +396,14 @@ internal class InterestUI : IFloatUI
             if (cluster.Contains(_dest))
             {
                 arrows.Add(new PathArrow(city, _dest, new NewRouteSettings(-1), Scene));
-                arrows.Last.color = DestinationColor;
+                arrows.Last.color = ConnectionColor;
                 //arrows.Last.strength = city.Destinations.Items[j].Level; // default is 1
                 int _id = city.Cities_interest.Find(_dest);
                 if (_id >= 0)
                 {
-                    arrows.Last.color = TwoWayColor;
+                    arrows.Last.color = DirectRouteColor;
                     arrows.Add(new PathArrow(_dest, city, new NewRouteSettings(-1), Scene));
-                    arrows.Last.color = TwoWayColor;
+                    arrows.Last.color = DirectRouteColor;
                 }
             }
         }
@@ -399,6 +427,42 @@ internal class InterestUI : IFloatUI
             arrows[i].Destroy(Scene);
         }
         arrows.Clear();
+    }
+
+
+    /// <summary>
+    /// Generates a one- or two-way arrow, with a color saying if cities are connected via a direct route.
+    /// </summary>
+    /// <param name="origin"></param>
+    /// <param name="destination"></param>
+    private void GenerateArrow(CityUser origin, CityUser destination)
+    {
+        // Helper - see if there is a specific city in destinations
+        static bool Contains(CityUser city, CityUser dest)
+        {
+            for (int i = 0; i < city.Destinations.Items.Count; i++)
+                if (city.Destinations.Items[i].Destination == dest.City)
+                    return true;
+            return false;
+        }
+        bool originToDest = Contains(origin, destination);
+        bool destToOrigin = Contains(destination, origin);
+
+        // Check if there is a route between them
+        bool directRoute = false;
+        for (int r = 0; !directRoute && r < origin.Routes.Count; r++)
+            for (int i = 0; !directRoute && i < origin.Routes[r].Instructions.Cities.Length; i++)
+                if (origin.Routes[r].Instructions.Cities[i] == destination)
+                    directRoute = true;
+
+        // Decide color and build 1 or 2 arrows
+        Color arrowColor = (originToDest || destToOrigin)
+            ? (directRoute ? ConnectionColor : InterestColor)
+            : (directRoute ? DirectRouteColor : NoConnectionColor);
+        if (destToOrigin)
+            AddArrow(destination, origin, arrowColor);
+        else // if (originToDest)
+            AddArrow(origin, destination, arrowColor); // we need an arrow to show no-connection status
     }
 
 
@@ -579,13 +643,23 @@ internal class InterestUI : IFloatUI
         }
         List<CityUser> closeCities = [.. destinations.Where(x => IsClose(x))];
         destinations.ExceptWith(closeCities);
-        if (closeCities.Count > 0) Clusters.Add(new CityCluster(closeCities, -2));
 
         // Call DBSCAN and create clusters
         var dbscan = new DBSCAN(300f, 2); // 300km, min 2 cities in a cluster
         var pointClusters = dbscan.Fit(destinations);
         foreach (List<DBSCAN.Point> points in pointClusters)
             Clusters.Add(new CityCluster([.. points.Select(x => x.City)], points[0].ClusterID));
+
+        // Exclude singles temporarily
+        int singlesIndex = Clusters.FindIndex(x => x.ID == -1);
+        CityCluster? singles = singlesIndex < 0 ? null : Clusters[singlesIndex];
+        if (singlesIndex >= 0)
+            Clusters.RemoveAt(singlesIndex);
+
+        // Sorting by number of cities, then singles and closebys at the end
+        Clusters.Sort((a, b) => b.Cities.Length.CompareTo(a.Cities.Length));
+        if (singles != null) Clusters.Add(singles);
+        if (closeCities.Count > 0) Clusters.Add(new CityCluster(closeCities, -2));
     }
 }
 
