@@ -160,12 +160,8 @@ public static class ExplorerCity_Patches
         {
             main_grid.update_children = false;
         };
-        //main_grid.OnUpdate += (Action)delegate
-        //{
-            //main_grid[1].OnUpdate.Invoke();
-        //};
-        main_grid.OnUpdate += () => main_grid[0].OnUpdate.Invoke();
-        main_grid.OnUpdate += () => main_grid[1].OnUpdate.Invoke();
+        main_grid.OnUpdate += () => main_grid[0].OnUpdate.Invoke(); // scroll
+        main_grid.OnUpdate += () => main_grid[1].OnUpdate.Invoke(); // scroll
         _collection.Transfer(main_grid);
 
         // Helper
@@ -183,6 +179,7 @@ public static class ExplorerCity_Patches
         if (__instance.City.Sea != null) text += $"  P"; // port - 2693 anchor (no)
         if (__instance.City.City.Resort) text += $"  {'\u2602'}"; // resort - 2602 umbrella 2603 snowman
         Label _name = LabelPresets.GetDefault(text, scene.Engine);
+        _name.Margin_local = new FloatSpace(MainData.Margin_content);
         IControl _radio = LabelPresets.GetRadio(_name, _NameWidth);
         _radio.Mouse_visible = false;
         main_grid.Transfer(_radio, 0, 0);
