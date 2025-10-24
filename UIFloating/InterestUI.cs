@@ -7,6 +7,7 @@ using STM.UI.Floating;
 using STMG.UI;
 using STMG.UI.Control;
 using STMG.UI.Utility;
+using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
 
@@ -17,16 +18,22 @@ public class CityCluster
 {
     public int ID { get; private set; }
 
-    public CityUser MainCity => Cities.MaxBy(x => x.Level)!;
+    public CityUser MainCity { get; private set; }
 
     public string Description => ID > 0 ? MainCity.Name : (ID == -2 ? "Close cities" : "Singles");
 
     public CityUser[] Cities { get; private set; }
 
-    public CityCluster(List<CityUser> cities, int id)
+    public CityCluster(List<CityUser> cities, int id, ushort player = 0)
     {
+        if (cities.Count == 0)
+            throw new ArgumentException("City cluster cannot be empty.");
         Cities = [.. cities];
         ID = id;
+        // Set MainCity, try hubs first
+        MainCity = Cities.Where(x => x.GetHub(player) != null).MaxBy(x => x.Level)!;
+        if (MainCity == null)
+            MainCity = Cities.MaxBy(x => x.Level)!;
     }
 
     public bool Contains(CityUser city) => Cities.Contains(city);
@@ -39,7 +46,7 @@ public class CityCluster
         return _result;
     }
 
-    public double GetLongestDistance()
+    public double GetEpsilon()
     {
         if (Cities.Length < 2)
         {
@@ -55,6 +62,11 @@ public class CityCluster
             }
         }
         return _distance;
+    }
+
+    internal string GetNames(GameScene scene)
+    {
+        return String.Join(" ", Cities.Select(x => x.City.Country_id == MainCity.City.Country_id ? x.Name : x.GetNameWithIcon(scene)));
     }
 }
 
@@ -143,6 +155,9 @@ internal class InterestUI : IFloatUI
         scene.Selection.AddUI(new InterestUI(city, scene));
     }
 
+
+    // ORIGIN CITIES UI
+    // [add country][add close by cities]
 
     private const float CitiesScrollHeight = 200f;
 
@@ -281,6 +296,10 @@ internal class InterestUI : IFloatUI
     }
 
 
+    // CITY CLUSTERS UI
+    // [up][dn] epsilon [up][dn] min cities [show-all]
+    // [scroll with items]
+
     private void GetCityClusters()
     {
         ControlCollection _content = new ControlCollection(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f));
@@ -316,14 +335,12 @@ internal class InterestUI : IFloatUI
     }
 
 
-    // TODO: Not sure if update is so needed, the feature is rather for slow analysis
     private void UpdateCityClusters()
     {
         clustersCollection.Clear();
         float _y = 0f;
         foreach(CityCluster cluster in Clusters)
         {
-            //destinations_saved.Add(City.Destinations.Items[m].Destination.User);
             AddCityClusterItem(cluster, ref _y); //, City.Last_destination <= m);
         }
         clustersCollection.Size_local = new Vector2(0f, _y);
@@ -332,18 +349,9 @@ internal class InterestUI : IFloatUI
         selected = Clusters.Count > 0 ? Clusters.Where(x => x.ID > 0).MaxBy(x => x.Cities.Length) : null;
         if (selected != null)
         {
-            //clustersScroll.focus();
             GenerateArrows(selected);
         }
         else DestroyArrows();
-
-        // Sorting logc - TODO perhaps could reuse?
-        //sort_buffer = new GrowArray<DestinationLink>(City.Destinations.Items.Count);
-        //for (int k = 0; k < City.Destinations.Items.Count; k++)
-        //{
-        //sort_buffer.Add(new DestinationLink(k, (float)City.Destinations.Items[k].Percent, destinations[k]));
-        //}
-        //SortDestinations();
     }
 
 
@@ -364,11 +372,8 @@ internal class InterestUI : IFloatUI
         else
         {
             if (Cities.Count == 0) return;
-            Color arrowColor = cluster.ID == -1 ? SinglesColor : CloseCitiesColor;
-            CityUser mainCity = Cities[0];
             foreach (CityUser cc in cluster.Cities)
-                AddArrow(cc, mainCity, arrowColor);
-                //GenerateArrow(city, cluster.MainCity);
+                GenerateArrow(cc, Cities[0]);
         }
     }
 
@@ -378,12 +383,10 @@ internal class InterestUI : IFloatUI
         arrows.Last.color = color;
     }
 
-    private readonly Color CloseCitiesColor = Color.LightGray; // cities not analyzed
-    private readonly Color SinglesColor = Color.Orange; // cities not in a cluster
-    private readonly Color ConnectionColor = Color.Green; // route and interest - best combo
+    private readonly Color ConnectionColor = new(95, 207, 63); // Green route and interest - best combo
     private readonly Color InterestColor = Color.Pink; // there is interest between cities, but no direct route
-    private readonly Color DirectRouteColor = Color.Blue; // there is route, but no interest
-    private readonly Color NoConnectionColor = Color.Yellow; // cities in a cluster not connected to the MainCity directly
+    private readonly Color DirectRouteColor = new(95, 159, 255); // Blue there is route, but no interest
+    private readonly Color NoConnectionColor = new(255, 127, 95); // pinky-red cities in a cluster not connected to the MainCity directly
     // TODO: later could add indirect too
 
     // This must called to toggle on/off arrows on a cluster
@@ -469,8 +472,8 @@ internal class InterestUI : IFloatUI
     private void AddCityClusterItem(CityCluster cluster, ref float y)
     {
         // Main button with the city name TODO: this will be main "cluster" button
-        // Design:       [core city] [info]
-        //               [city names] (scrolling if possible)
+        // Design:       [name,country     count] [on/off ] (arrows toggle)
+        //               [city names (scrolling)] [analyze]
         Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f), Scene.Engine, out ControlCollection _content);
         y += _button.Size_local_total.Y;
         _button.horizontal_alignment = HorizontalAlignment.Stretch;
@@ -510,54 +513,30 @@ internal class InterestUI : IFloatUI
         Grid _grid = new Grid(ContentRectangle.Stretched, 2, 2, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
         _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items/2);
-        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button * 2);
+        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button);
         _content.Transfer(_grid);
 
         // City name
-        string _text = cluster.MainCity.GetNameWithIcon(Scene);
-        Label _dest = LabelPresets.GetBold(cluster.ID > 0 ? _text : cluster.Description, Scene.Engine);
-        _dest.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(_dest, 0, 0);
+        string _text = cluster.MainCity.GetNameWithIcon(Scene) 
+            + $" <!cicon_star>{cluster.MainCity.Level}" 
+            + $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({cluster.MainCity.City.GetCountry(Scene).Name.GetTranslation(Localization.Language)})";
+        Label _name = LabelPresets.GetBold(cluster.ID > 0 ? _text : cluster.Description, Scene.Engine);
+        _name.horizontal_alignment = HorizontalAlignment.Left;
+        _name.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(_name, 0, 0);
 
-        // Image of the head - not needed
-        //Image _passenger = new Image(MainData.Icon_passenger.Upscale);
-        //_passenger.horizontal_alignment = HorizontalAlignment.Center;
-        //_passenger.vertical_alignment = VerticalAlignment.Center;
-        //_passenger.Opacity = 0.25f;
-        //_grid.Transfer(_passenger, 1, 0, 1, 2);
-
-        // Cluster
+        // Num cites in the cluster
         Label _count = LabelPresets.GetBold(cluster.Cities.Length.ToString(), Scene.Engine, LabelPresets.Color_stats);
-        _count.horizontal_alignment = HorizontalAlignment.Center;
-        _grid.Transfer(_count, 1, 0, 1, 2);
+        _count.horizontal_alignment = HorizontalAlignment.Right;
+        _count.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(_count, 0, 0);
 
-        // Main city level
-        Label _info = LabelPresets.GetBold(cluster.ID > 0 ? $"<!cicon_star>{cluster.MainCity.Level.ToString()}" : "-", Scene.Engine, LabelPresets.Color_stats);
-        _info.horizontal_alignment = HorizontalAlignment.Right;
-        _info.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(_info, 0, 0);
-
-        // Bottom row - level graphics TODO: list of cities in the cluster with some basic info?
-        ControlCollection _level = new ControlCollection(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f));
-        _level.horizontal_alignment = HorizontalAlignment.Stretch;
-        _level.Mouse_visible = false;
-        _grid.Transfer(_level, 0, 1);
-        //Panel _fill = new Panel(ContentRectangle.Stretched, MainData.Panel_fill_box_back);
-        //_fill.use_multi_texture = true;
-        //_fill.Mouse_visible = false;
-        //_level.Transfer(_fill);
-        Label _label = LabelPresets.GetDefault(cluster.ToString(), Scene.Engine);
-        _label.Margin_local = new FloatSpace(MainData.Margin_content);
-        _label.Color *= 0.5f;
-        _level.Transfer(_label);
-        //Image _last = new Image(new ContentRectangle(0f, 0f, 4f, 0f, 1f), MainData.Panel_empty);
-        //_last.vertical_alignment = VerticalAlignment.Stretch;
-        //_last.Color = Color.Black * 0.5f;
-        //_level.Transfer(_last);
-        Label _count_a = LabelPresets.GetBold("info", Scene.Engine);
-        _count_a.horizontal_alignment = HorizontalAlignment.Right;
-        _count_a.Margin_local = new FloatSpace(MainData.Margin_content);
-        _level.Transfer(_count_a);
+        // Bottom row - list of cities in the cluster
+        Label _cluster = LabelPresets.GetDefault(cluster.GetNames(Scene), Scene.Engine);
+        _cluster.Margin_local = new FloatSpace(MainData.Margin_content/2);
+        IControl _radio = LabelPresets.GetRadio(_cluster, 500);
+        _radio.Mouse_visible = false;
+        _grid.Transfer(_radio, 0, 1);
     }
 
 
