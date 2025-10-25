@@ -24,16 +24,21 @@ public class CityCluster
 
     public CityUser[] Cities { get; private set; }
 
-    public CityCluster(List<CityUser> cities, int id, ushort player = 0)
+    public CityCluster(List<CityUser> cities, int id, List<CityUser> mains, ushort player = 0)
     {
         if (cities.Count == 0)
             throw new ArgumentException("City cluster cannot be empty.");
         Cities = [.. cities];
         ID = id;
-        // Set MainCity, try hubs first
-        MainCity = Cities.Where(x => x.GetHub(player) != null).MaxBy(x => x.Level)!;
-        if (MainCity == null)
-            MainCity = Cities.MaxBy(x => x.Level)!;
+        // Set MainCity, try to find in cache, then hubs
+        CityUser? _main = cities.Intersect(mains).FirstOrDefault();
+        if (_main == null)
+        {
+            MainCity = Cities.Where(x => x.GetHub(player) != null).MaxBy(x => x.Level)!;
+            MainCity ??= Cities.MaxBy(x => x.Level)!;
+        }
+        else
+            MainCity = _main;
     }
 
     public bool Contains(CityUser city) => Cities.Contains(city);
@@ -66,7 +71,16 @@ public class CityCluster
 
     internal string GetNames(GameScene scene)
     {
-        return String.Join(" ", Cities.Select(x => x.GetNameWithIcon(scene)));
+        return String.Join(" ", Cities.Select(x => (x == MainCity ? "<!cicon_ship_b>" : "") + x.Name/*GetNameWithIcon(scene)*/));
+    }
+
+    internal void ChangeMainCity()
+    {
+        int i = 0;
+        for (; i < Cities.Length; i++)
+            if (Cities[i] == MainCity)
+                break;
+        MainCity = Cities[ (i+1) % Cities.Length];
     }
 }
 
@@ -85,6 +99,7 @@ internal class InterestUI : IFloatUI
     private ScrollSettings clustersScroll;
     private GrowArray<PathArrow> arrows;
     private CityCluster? selected;
+    private List<CityUser> MainCities;
 
     // Parameters
     // TODO: History to remember changes
@@ -106,6 +121,7 @@ internal class InterestUI : IFloatUI
         clustersScroll = new ScrollSettings();
         arrows = new GrowArray<PathArrow>();
         selected = null;
+        MainCities = [];
 
         // Build
         Construct();
@@ -254,8 +270,7 @@ internal class InterestUI : IFloatUI
         }
 
         // City button
-        ControlCollection _content;
-        Button _button = ButtonPresets.GetGeneral(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), Scene.Engine, out _content);
+        Button _button = ButtonPresets.GetGeneral(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), Scene.Engine, out ControlCollection _content);
         _button.horizontal_alignment = HorizontalAlignment.Stretch;
         _button.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
         //_button.use_multi_texture = true;
@@ -273,18 +288,18 @@ internal class InterestUI : IFloatUI
             UpdateCityClusters();
         };
         _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
-        _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlLeft(_button);
+        _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlRight(_button);
 
         // Name
-        ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
-        _button.TransferContent(_collection);
+        //ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
+        //_button.TransferContent(_collection);
         Label _label = LabelPresets.GetDefault(city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}", Scene.Engine);
         _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _collection.Transfer(_label);
+        _content.Transfer(_label);
         _label = LabelPresets.GetDefault(city.City.GetCountry(Scene).Name.GetTranslation(Localization.Language), Scene.Engine, LabelPresets.Color_stats);
         _label.horizontal_alignment = HorizontalAlignment.Right;
         _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _collection.Transfer(_label);
+        _content.Transfer(_label);
 
         citiesItems.Add(city, _button);
         return _button;
@@ -570,12 +585,25 @@ internal class InterestUI : IFloatUI
         // Main button with the city name TODO: this will be main "cluster" button
         // Design:       [name,country     count] [on/off ] (arrows toggle)
         //               [city names (scrolling)] [analyze]
-        Button _button = ButtonPresets.GetBlack(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f), Scene.Engine, out ControlCollection _content);
-        y += _button.Size_local_total.Y;
-        _button.horizontal_alignment = HorizontalAlignment.Stretch;
-        _button.Margin_local = new FloatSpace(MainData.Margin_content_items / 2, MainData.Margin_content_items / 2);
-        _button.use_multi_texture = true;
-        clustersCollection.Transfer(_button);
+
+        // Grid 2x2
+        Grid _grid = new Grid(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f)/*ContentRectangle.Stretched*/, 2, 2, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items);
+        //_grid.Opacity = 1f;
+        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button);
+        //_content.Transfer(_grid);
+        clustersCollection.Transfer(_grid);
+        y += _grid.Size_local_total.Y;
+
+        // Hover button
+        Button _button = ButtonPresets.GetBlack(/*new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f)*/ContentRectangle.Stretched, Scene.Engine, out ControlCollection _content);
+        //y += _button.Size_local_total.Y;
+        //_button.horizontal_alignment = HorizontalAlignment.Stretch;
+        _button.Margin_local = new FloatSpace(0f); // MainData.Margin_content_items / 2, MainData.Margin_content_items / 2);
+        //_button.use_multi_texture = true;
+        //clustersCollection.Transfer(_button);
+        _grid.Transfer(_button, 0, 0, 1, 2);
 
         // Show arrows
         _button.OnButtonPress += (Action)delegate
@@ -605,18 +633,8 @@ internal class InterestUI : IFloatUI
                 DestroyArrows();
         };
 
-        // Grid 2x2 in the main button
-        Grid _grid = new Grid(ContentRectangle.Stretched, 2, 2, SizeType.Weight);
-        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items);
-        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button);
-        _content.Transfer(_grid);
-
         // City name
-        string _text = cluster.MainCity.GetNameWithIcon(Scene) 
-            + $" <!cicon_star>{cluster.MainCity.Level}" 
-            + $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({cluster.MainCity.City.GetCountry(Scene).Name.GetTranslation(Localization.Language)})";
-        Label _name = LabelPresets.GetBold(cluster.ID > 0 ? _text : cluster.Description, Scene.Engine);
+        Label _name = LabelPresets.GetBold("name", Scene.Engine);
         _name.horizontal_alignment = HorizontalAlignment.Left;
         _name.Margin_local = new FloatSpace(MainData.Margin_content_items);
         _grid.Transfer(_name, 0, 0);
@@ -627,12 +645,54 @@ internal class InterestUI : IFloatUI
         _count.Margin_local = new FloatSpace(MainData.Margin_content_items);
         _grid.Transfer(_count, 0, 0);
 
+        // Select
+        ButtonItem _select = ButtonPresets.IconBlack(ContentRectangle.Stretched, MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off, Scene.Engine);
+        _grid.Transfer(_select.Control, 1, 0);
+        _select.Control.OnButtonPress += (Action)delegate
+        {
+            if (MainCities.Contains(cluster.MainCity))
+            {
+                MainCities.Remove(cluster.MainCity);
+                _select.Icon.Graphics = MainData.Icon_toggle_off;
+            }
+            else
+            {
+                MainCities.Add(cluster.MainCity);
+                _select.Icon.Graphics = MainData.Icon_toggle_on;
+            }
+        };
+        _select.Control.OnMouseStillTime += () => TooltipPreset.Get("Mark as cluster's main city", Scene.Engine).AddToControlRight(_select.Control);
+
         // Bottom row - list of cities in the cluster
         Label _cluster = LabelPresets.GetDefault(cluster.GetNames(Scene), Scene.Engine);
         _cluster.Margin_local = new FloatSpace(MainData.Margin_content_items);
         IControl _radio = LabelPresets.GetRadio(_cluster, 500, margin: new FloatSpace(MainData.Margin_content_items)); // TODO: dynamic width?
         _radio.Mouse_visible = false;
         _grid.Transfer(_radio, 0, 1);
+
+        // Change main city
+        Button _change = ButtonPresets.TextBlack(ContentRectangle.Stretched, "<!cicon_fast>", Scene.Engine).Control;
+        _grid.Transfer(_change, 1, 1);
+        _change.OnButtonPress += (Action)delegate
+        {
+            cluster.ChangeMainCity();
+            UpdateClusterInfo();
+            if (selected != null && selected.ID == cluster.ID)
+                GenerateArrows(cluster);
+        };
+        _change.OnMouseStillTime += () => TooltipPreset.Get("Change cluster's main city", Scene.Engine).AddToControlRight(_change);
+
+        // Helper
+        void UpdateClusterInfo()
+        {
+            string _text = cluster.MainCity.GetNameWithIcon(Scene)
+                + $" <!cicon_star>{cluster.MainCity.Level}"
+                + $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({cluster.MainCity.City.GetCountry(Scene).Name.GetTranslation(Localization.Language)})";
+            _name.Text = cluster.ID > 0 ? _text : cluster.Description;
+            _cluster.Text = cluster.GetNames(Scene);
+            _select.Icon.Graphics = MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off;
+        }
+        UpdateClusterInfo(); // get current data
     }
 
 
@@ -708,6 +768,8 @@ internal class InterestUI : IFloatUI
         destinations.ExceptWith(Cities);
 
         // move all close cities into a separate cluster
+        // perhaps not needed when centroid idea is implemented
+        /*
         bool IsClose(CityUser x)
         {
             foreach (CityUser city in Cities)
@@ -717,12 +779,13 @@ internal class InterestUI : IFloatUI
         }
         List<CityUser> closeCities = [.. destinations.Where(x => IsClose(x))];
         destinations.ExceptWith(closeCities);
+        */
 
         // Call DBSCAN and create clusters
         var dbscan = new DBSCAN(epsilon, minCities);
         var pointClusters = dbscan.Fit(destinations);
         foreach (List<DBSCAN.Point> points in pointClusters)
-            Clusters.Add(new CityCluster([.. points.Select(x => x.City)], points[0].ClusterID));
+            Clusters.Add(new CityCluster([.. points.Select(x => x.City)], points[0].ClusterID, MainCities));
 
         // Exclude singles temporarily
         int singlesIndex = Clusters.FindIndex(x => x.ID == -1);
@@ -733,7 +796,7 @@ internal class InterestUI : IFloatUI
         // Sorting by number of cities, then singles and closebys at the end
         Clusters.Sort((a, b) => b.Cities.Length.CompareTo(a.Cities.Length));
         if (singles != null) Clusters.Add(singles);
-        if (closeCities.Count > 0) Clusters.Add(new CityCluster(closeCities, -2));
+        //if (closeCities.Count > 0) Clusters.Add(new CityCluster(closeCities, -2));
     }
 }
 
@@ -802,14 +865,18 @@ public class DBSCAN
         {
             var q = queue.Dequeue();
 
-            if (q.ClusterID == -1)
-                q.ClusterID = clusterId;
-
-            if (q.ClusterID != 0)
+            if (q.ClusterID != 0) // already assigned
                 continue;
 
-            q.ClusterID = clusterId;
+            // Check centroid distance before assigning cluster
+            Point[] _cluster = [..points.Where(p => p.ClusterID == clusterId)];
+            decimal _cx = _cluster.Average(p => p.City.Location.X);
+            decimal _cy = _cluster.Average(p => p.City.Location.Y);
+            if (GameScene.GetDistance(q.City.Location, new DVector(_cx, _cy)) > eps * 2.0) // TODO: Param 2.0
+                continue;
 
+            // Now the point is a neighbour and within centroid proper distance
+            q.ClusterID = clusterId;
             var qNeighbors = GetNeighbors(q, points);
             if (qNeighbors.Count >= minPts)
             {
@@ -821,7 +888,7 @@ public class DBSCAN
 
     private List<Point> GetNeighbors(Point p, List<Point> points)
     {
-        return [.. points.Where(other => Distance(p, other) <= eps)];
+        return [.. points.Where(other => Distance(p, other) < eps)];
     }
 
     private static double Distance(Point a, Point b)
