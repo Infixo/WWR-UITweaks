@@ -10,6 +10,7 @@ using STMG.UI.Utility;
 using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
+using static STM.UI.Floating.CityUI;
 
 namespace UITweaks.UIFloating;
 
@@ -623,6 +624,7 @@ internal class InterestUI : IFloatUI
         // Show briefly if not selected
         _button.OnMouseStillTime += (Action)delegate
         {
+            GetClusterTooltip(_grid, cluster);
             if (selected == null)
                 GenerateArrows(cluster);
         };
@@ -696,44 +698,19 @@ internal class InterestUI : IFloatUI
     }
 
 
-    // TODO: will list all info about cluster, inc. all cities, connections, etc.
-    /*
-    private void GetDestinationTooltip(IControl parent, CityDestination destination)
+    private void GetClusterTooltip(IControl control, CityCluster cluster)
     {
-        TooltipPreset _tooltip = TooltipPreset.Get(Localization.GetVehicle("destination"), Scene.Engine, can_lock: true);
-        string _text = City.GetNameWithIcon(Scene) + " <!cicon_right> " + destination.Destination.User.GetNameWithIcon(Scene);
-        _tooltip.AddBoldLabel(_text, null, center: true);
-        _tooltip.AddSeparator();
-        if (City.DestinationIndirrectProblem(destination, out var _amount))
-        {
-            _tooltip.AddDescription(Localization.GetTasks("indirect_info")).Color = LabelPresets.Color_negative;
-            _tooltip.AddStatsLine(Localization.GetCity("connecting"), "<!cicon_passenger> " + StrConversions.CleanNumber(_amount));
-            _tooltip.AddSeparator();
-        }
-        _tooltip.AddDescription(Localization.GetInfo("destination"));
-        _tooltip.AddSpace();
-        _tooltip.AddDescription(Localization.GetInfo("destination_last").Replace("{percent}", StrConversions.Percent((float)MainData.Defaults.City_destination_change)));
-        _tooltip.AddSeparator();
-        _tooltip.AddStatsLine(Localization.GetCity("level"), "<!cicon_star> " + StrConversions.OutOf(destination.Level, MainData.Defaults.Max_level_destination));
-        _tooltip.AddStatsLine("<!cl:demand:" + Localization.GetCity("demand_price") + ">", "<!cicon_demand> " + StrConversions.CleanNumber((decimal)destination.Demand_price / 100m, 2));
-        _tooltip.AddStatsLine(Localization.GetCity("passengers_per_month"), "<!cicon_passenger> " + StrConversions.CleanNumber(MainData.Defaults.GetMinPassengersPerMonth() * destination.Level));
-        _tooltip.AddStatsLine(Localization.GetGeneral("max"), "<!cicon_passenger> " + StrConversions.CleanNumber(MainData.Defaults.GetMaxPassengersPerMonth()), alt: true, 1);
-        if (destination.Tourism != 0)
-        {
-            _tooltip.AddSeparator();
-            _tooltip.AddStatsLine("<!cl:tourism:" + Localization.GetCity("tourism") + ">", StrConversions.PercentChange((float)destination.Tourism / 100f));
-            //AppendTourismEvents(_tooltip, City.City, Scene);
-        }
-        _tooltip.AddSeparator();
-        _tooltip.AddStatsLine(Localization.GetCity("fulfillment"), () => StrConversions.Percent((float)destination.Percent));
-        _tooltip.AddStatsLine(Localization.GetVehicle("last_month"), () => StrConversions.Percent((float)destination.Last), alt: true, 1);
-        _tooltip.AddSeparator();
-        _tooltip.AddStatsLine(Localization.GetGeneral("distance"), () => StrConversions.GetDistance(GameScene.GetDistance(City, destination.Destination.User)));
-        //AttachLines(_tooltip, City, destination.Destination.User, Scene);
-        //SetUpArrows(destination.Destination.User, _tooltip.Main_control);
-        _tooltip.AddToControlAuto(parent);
+        TooltipPreset _tooltip = TooltipPreset.Get("City cluster", Scene.Engine, can_lock: true);
+        int _alt = 0;
+        foreach (CityUser city in cluster.Cities
+            .OrderBy(c => c.City.GetCountry(Scene).Name.GetTranslation(Localization.Language))
+            .ThenBy(c => c.Name))
+            _tooltip.AddStatsLine(city.GetNameWithIcon(Scene), city.GetCountryName(Scene), 
+                //city.City.GetCountry(Scene).Name.GetTranslation(Localization.Language),
+                (_alt++ & 1) == 1);
+        _tooltip.AddToControlRight(control);
     }
-    */
+
 
     private void Update()
     {
