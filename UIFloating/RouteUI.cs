@@ -480,7 +480,8 @@ public static class RouteUI_Patches
         }
         __instance.Extra().Label_Vehicles.Text = StrConversions.CleanNumber(__instance.Line.Vehicles) + typeIcon;
         // Buttons
-        __instance.UpdateButtons();
+        if (__instance.Company == __instance.Scene.Session.GetPlayer())
+            __instance.UpdateButtons();
     }
 
 
