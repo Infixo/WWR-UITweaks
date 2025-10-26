@@ -10,7 +10,6 @@ using STMG.UI.Utility;
 using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
-using static STM.UI.Floating.CityUI;
 
 namespace UITweaks.UIFloating;
 
@@ -35,8 +34,9 @@ public class CityCluster
         CityUser? _main = cities.Intersect(mains).FirstOrDefault();
         if (_main == null)
         {
-            MainCity = Cities.Where(x => x.GetHub(player) != null).MaxBy(x => x.Level)!;
-            MainCity ??= Cities.MaxBy(x => x.Level)!;
+            //MainCity = Cities.Where(x => x.GetHub(player) != null).MaxBy(x => x.Level)!;
+            //MainCity ??= Cities.MaxBy(x => x.Level)!;
+            MainCity = Cities[0];
         }
         else
             MainCity = _main;
@@ -72,7 +72,7 @@ public class CityCluster
 
     internal string GetNames(GameScene scene)
     {
-        return String.Join(" ", Cities.Select(x => (x == MainCity ? "<!cicon_ship_b>" : "") + x.Name/*GetNameWithIcon(scene)*/));
+        return String.Join(" ", Cities.Select(x => (x == MainCity ? "<!cicon_ship_b>" : "") + x.Name));
     }
 
     internal void ChangeMainCity()
@@ -104,8 +104,8 @@ internal class InterestUI : IFloatUI
 
     // Parameters
     // TODO: History to remember changes
-    private double epsilon = 150f; // max distance to search for neighbors
-    private int minCities = 3; // min number of cities that constitute a cluster
+    private double epsilon = 200.0; // max distance to search for neighbors
+    private int minCities = 3; // min number of cities (inc. the city) in the neighborhood to be assigned to a cluster
 
 
     internal InterestUI(CityUser city, GameScene scene) : base(null, scene)
@@ -182,31 +182,6 @@ internal class InterestUI : IFloatUI
 
     private void GetOriginCities()
     {
-        /*
-        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 400f, CitiesScrollHeight, 1f), 1, 2, SizeType.Weight);
-        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content, 0f, 0f);
-        AddControl(_grid, "cities");
-        _grid.SetRow(0, SizeType.Pixels, MainData.Size_button);
-        // Header?
-        Label _header = LabelPresets.GetBold(Localization.GetGeneral("travelers"), Scene.Engine);
-        _header.horizontal_alignment = HorizontalAlignment.Stretch;
-        _header.Opacity = 0.75f;
-        _grid.Transfer(_header, 0, 0);
-        // Button?
-        ButtonItem _toggle = ButtonPresets.TextGreenPulse(ContentRectangle.Stretched, "", Scene.Engine);
-        _toggle.Control.Margin_local = new FloatSpace(MainData.Size_button * 2, 0f);
-        _grid.Transfer(_toggle.Control, 0, 0);
-        _toggle.Label.Text = "Cities"; //(show_travelers ? Localization.GetGeneral("travelers") : Localization.GetInfrastructure("traffic"));
-                                       //_toggle.Control.OnButtonPress += (Action)delegate
-                                       //{
-                                       //ToggleBottom(_toggle.Label);
-                                       //};
-        _toggle.Control.OnMouseStillTime += (Action)delegate
-        {
-            GetToggleTooltip(_toggle.Control);
-        };
-        */
         // List of cities
         citiesCollection = new ControlCollection(ContentRectangle.Zero);
         citiesCollection.horizontal_alignment = HorizontalAlignment.Stretch;
@@ -224,13 +199,6 @@ internal class InterestUI : IFloatUI
         _scroll.Margin_local = new FloatSpace(MainData.Margin_content_items, 0f);
         AddControl(_scroll, "origin_cities");
         UpdateOriginCities();
-    }
-
-    private void GetToggleTooltip(IControl parent)
-    {
-        TooltipPreset tooltipPreset = TooltipPreset.Get(Localization.GetInfrastructure("traffic_toggle"), Scene.Engine, can_lock: true);
-        tooltipPreset.AddDescription(Localization.GetInfo("traffic"));
-        tooltipPreset.AddToControlAbove(parent);
     }
 
     private void UpdateOriginCities(bool scrollToLast = false)
@@ -270,16 +238,52 @@ internal class InterestUI : IFloatUI
             return item;
         }
 
-        // City button
-        Button _button = ButtonPresets.GetGeneral(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), Scene.Engine, out ControlCollection _content);
-        _button.horizontal_alignment = HorizontalAlignment.Stretch;
-        _button.Margin_local = new FloatSpace(MainData.Margin_content_items, MainData.Margin_content_items / 2);
-        //_button.use_multi_texture = true;
-        //y += _button.Size_local_total.Y;
-        citiesCollection.Transfer(_button);
+        // Grid
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), 5, 1, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Margin_local = new FloatSpace(MainData.Margin_content_items); //, MainData.Margin_content, MainData.Margin_content_items);
+        //_grid.Opacity = 0f;
+        _grid.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
+        // layout
+        // 0 button
+        _grid.SetColumn(1, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetColumn(2, SizeType.Pixels, MainData.Size_button); // add more cities
+        _grid.SetColumn(3, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetColumn(4, SizeType.Pixels, MainData.Size_button); // delete
 
-        // Remove city
-        _button.OnButtonPress += (Action)delegate
+        // Name and country on a button-style panel
+        Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_button);
+        _grid.Transfer(_panel, 0, 0);
+        Label _label = LabelPresets.GetDefault(city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}", Scene.Engine);
+        _label.horizontal_alignment = HorizontalAlignment.Left;
+        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_label, 0, 0);
+        _label = LabelPresets.GetDefault(city.GetCountryName(Scene), Scene.Engine, LabelPresets.Color_stats);
+        _label.horizontal_alignment = HorizontalAlignment.Right;
+        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_label, 0, 0 );
+
+        // Add more cities
+        Button _addMore = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_duplicate, Scene.Engine).Control;
+        _grid.Transfer(_addMore, 2, 0);
+        _addMore.OnMouseStillTime += () => TooltipPreset.Get("Add neighborhood cities from the country.", Scene.Engine).AddToControlBellow(_addMore);
+        _addMore.OnButtonPress += (Action)delegate
+        {
+            // Find neighbors
+            byte _countryId = city.City.Country_id;
+            foreach (City other in Scene.Countries[_countryId].Cities)
+                if (GameScene.GetDistance(city.Location, other.Location) < epsilon &&
+                    !Cities.Contains(other.User))
+                    Cities.Add(other.User);
+            UpdateOriginCities(scrollToLast: true);
+            GenerateClusters();
+            UpdateCityClusters();
+        };
+
+        // Delete
+        Button _delete = ButtonPresets.IconClose(ContentRectangle.Stretched, MainData.Icon_trash, Scene.Engine).Control;
+        _grid.Transfer(_delete, 4, 0);
+        _delete.OnButtonPress += (Action)delegate
         {
             citiesItems[city].CloseWithAnimation(close_if_no_animation: true);
             citiesItems.Remove(city);
@@ -288,22 +292,11 @@ internal class InterestUI : IFloatUI
             GenerateClusters();
             UpdateCityClusters();
         };
-        _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
-        _button.OnMouseStillTime += () => TooltipPreset.Get("Click to remove", Scene.Engine).AddToControlRight(_button);
 
-        // Name
-        //ControlCollection _collection = new ControlCollection(ContentRectangle.Stretched);
-        //_button.TransferContent(_collection);
-        Label _label = LabelPresets.GetDefault(city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}", Scene.Engine);
-        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _content.Transfer(_label);
-        _label = LabelPresets.GetDefault(city.City.GetCountry(Scene).Name.GetTranslation(Localization.Language), Scene.Engine, LabelPresets.Color_stats);
-        _label.horizontal_alignment = HorizontalAlignment.Right;
-        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _content.Transfer(_label);
-
-        citiesItems.Add(city, _button);
-        return _button;
+        // Finalize
+        citiesCollection.Transfer(_grid);
+        citiesItems.Add(city, _grid);
+        return _grid; ;
     }
 
 
@@ -423,10 +416,6 @@ internal class InterestUI : IFloatUI
         _sort.vertical_alignment = VerticalAlignment.Center;
         _sort.Margin_local = new FloatSpace(0f); //, 0f);
         _grid.Transfer(_sort, 7, 0);
-        //_sort.OnButtonPress += (Action)delegate
-        //{
-        //ButtonPresets.OpenDropdown(_sort, GetSortOptions, Scene.Engine);
-        //};
 
         // Scroll area
         clustersCollection = new ControlCollection(ContentRectangle.Zero);
@@ -475,17 +464,17 @@ internal class InterestUI : IFloatUI
             // NEW LOGIC - show main city and intra-cluster
             // MainCity
             foreach (CityUser city in Cities)
-                GenerateArrow(city, cluster.MainCity);
+                GenerateArrow(city, cluster.MainCity, false);
 
             // Cluster connections
             foreach (CityUser cc in cluster.Cities.Where(x => x != cluster.MainCity))
-                GenerateArrow(cc, cluster.MainCity);
+                GenerateArrow(cc, cluster.MainCity, true);
         }
         else
         {
             if (Cities.Count == 0) return;
             foreach (CityUser cc in cluster.Cities)
-                GenerateArrow(cc, Cities[0]);
+                GenerateArrow(cc, Cities[0], true);
         }
     }
 
@@ -550,7 +539,7 @@ internal class InterestUI : IFloatUI
     /// </summary>
     /// <param name="origin"></param>
     /// <param name="destination"></param>
-    private void GenerateArrow(CityUser origin, CityUser destination)
+    private void GenerateArrow(CityUser origin, CityUser destination, bool showNoConnection = false)
     {
         // Helper - see if there is a specific city in destinations
         static bool Contains(CityUser city, CityUser dest)
@@ -569,6 +558,10 @@ internal class InterestUI : IFloatUI
             for (int i = 0; !directRoute && i < origin.Routes[r].Instructions.Cities.Length; i++)
                 if (origin.Routes[r].Instructions.Cities[i] == destination)
                     directRoute = true;
+
+        // Decide if shown
+        if (!(showNoConnection || directRoute || originToDest || destToOrigin))
+            return;
 
         // Decide color and build 1 or 2 arrows
         Color arrowColor = (originToDest || destToOrigin)
@@ -705,8 +698,9 @@ internal class InterestUI : IFloatUI
         foreach (CityUser city in cluster.Cities
             .OrderBy(c => c.City.GetCountry(Scene).Name.GetTranslation(Localization.Language))
             .ThenBy(c => c.Name))
-            _tooltip.AddStatsLine(city.GetNameWithIcon(Scene), city.GetCountryName(Scene), 
-                //city.City.GetCountry(Scene).Name.GetTranslation(Localization.Language),
+            _tooltip.AddStatsLine(
+                city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}",
+                (city.GetHub(Scene.Session.Player) != null ? "<!cicon_storage> " : "") + city.GetCountryName(Scene), 
                 (_alt++ & 1) == 1);
         _tooltip.AddToControlRight(control);
     }
@@ -744,25 +738,11 @@ internal class InterestUI : IFloatUI
         }
         destinations.ExceptWith(Cities);
 
-        // move all close cities into a separate cluster
-        // perhaps not needed when centroid idea is implemented
-        /*
-        bool IsClose(CityUser x)
-        {
-            foreach (CityUser city in Cities)
-                if (GameScene.GetDistance(city, x) < epsilon)
-                    return true;
-            return false;
-        }
-        List<CityUser> closeCities = [.. destinations.Where(x => IsClose(x))];
-        destinations.ExceptWith(closeCities);
-        */
-
         // Call DBSCAN and create clusters
         var dbscan = new DBSCAN(epsilon, minCities);
         var pointClusters = dbscan.Fit(destinations);
-        foreach (List<DBSCAN.Point> points in pointClusters)
-            Clusters.Add(new CityCluster([.. points.Select(x => x.City)], points[0].ClusterID, MainCities));
+        foreach (List<DBSCAN.Point> pointCluster in pointClusters)
+            Clusters.Add(new CityCluster([.. pointCluster.OrderByDescending(x => x.Neighbors.Count).Select(x => x.City)], pointCluster[0].ClusterID, MainCities));
 
         // Exclude singles temporarily
         int singlesIndex = Clusters.FindIndex(x => x.ID == -1);
@@ -784,10 +764,13 @@ public class DBSCAN
     {
         public CityUser City;
         public int ClusterID; // 0 = unvisited, -1 = noise, >0 = cluster ID
+        public List<Point> Neighbors;
+
         public Point(CityUser city)
         {
             City = city;
             ClusterID = 0;
+            Neighbors = [];
         }
         public override string ToString() => $"{City} ({ClusterID})";
     }
@@ -805,24 +788,26 @@ public class DBSCAN
     {
         // prepare initial list
         List<Point> points = [.. cities.Select(city => new Point(city))];
+        foreach(Point p in points)
+            p.Neighbors = GetNeighbors(p, points);
 
         int clusterId = 0;
 
-        foreach (Point p in points)
+        foreach (Point p in points.OrderByDescending(p => p.Neighbors.Count)) // analyze from most "dense" neighborhoods
         {
             if (p.ClusterID != 0)
                 continue; // already visited
 
-            List<Point> neighbors = GetNeighbors(p, points);
+            //List<Point> neighbors = GetNeighbors(p, points);
 
-            if (neighbors.Count < minPts)
+            if (p.Neighbors.Count < minPts)
             {
                 p.ClusterID = -1; // mark as noise
                 continue;
             }
 
             clusterId++;
-            ExpandCluster(p, neighbors, clusterId, points);
+            ExpandCluster(p, p.Neighbors, clusterId, points);
         }
 
         // Group by cluster ID and return list of clusters
@@ -842,7 +827,7 @@ public class DBSCAN
         {
             var q = queue.Dequeue();
 
-            if (q.ClusterID != 0) // already assigned
+            if (q.ClusterID > 0) // already assigned
                 continue;
 
             // Check centroid distance before assigning cluster
@@ -852,7 +837,7 @@ public class DBSCAN
             if (GameScene.GetDistance(q.City.Location, new DVector(_cx, _cy)) > eps * 2.0) // TODO: Param 2.0
                 continue;
 
-            // Now the point is a neighbour and within centroid proper distance
+            // Now the point is a neighbor and within centroid proper distance
             q.ClusterID = clusterId;
             var qNeighbors = GetNeighbors(q, points);
             if (qNeighbors.Count >= minPts)
@@ -863,9 +848,15 @@ public class DBSCAN
         }
     }
 
+    /// <summary>
+    /// Gets neighbors (points with distance < eps) and sorts them by distance.
+    /// </summary>
+    /// <param name="p"></param>
+    /// <param name="points"></param>
+    /// <returns></returns>
     private List<Point> GetNeighbors(Point p, List<Point> points)
     {
-        return [.. points.Where(other => Distance(p, other) < eps)];
+        return [.. points.Where(other => Distance(p, other) < eps).OrderBy(other => Distance(p, other))];
     }
 
     private static double Distance(Point a, Point b)
