@@ -48,6 +48,10 @@
   - (0.3) Hire manager specific for a country of currently used vehicles. 
   - (0.4) Info about generated plans and list of brands.
 - (0.4) VehicleUI shows line number.
+- (0.7) NEW Route Planner.
+  - Groups into clusters cities that have interest in a group of origin cities.
+  - Displays connections within a cluster and between the cluster and origin cities.
+  - Use Ctrl-RClick on a city to start it and later add more origin cities.
 
 ### Troubleshooting
 - Output messages are logged into UITweaksLog.txt in the %TEMP% dir.
@@ -62,6 +66,8 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.7.0 (2025-10-26)
+  - New feature: Route Planner
 - v0.6.0 (2025-10-20)
   - RClick opens routes, w/ Shift opens a Hub.
   - Info about number of routes in a city available on the map.
