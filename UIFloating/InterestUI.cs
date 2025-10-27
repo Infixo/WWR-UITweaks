@@ -20,8 +20,6 @@ public class CityCluster
 
     public CityUser MainCity { get; private set; }
 
-    public string Description => ID > 0 ? MainCity.Name : (ID == -2 ? "Close cities" : "Singles");
-
     public CityUser[] Cities { get; private set; }
 
     public CityCluster(List<CityUser> cities, int id, List<CityUser> mains, ushort player = 0)
@@ -52,24 +50,6 @@ public class CityCluster
         return _result;
     }
 
-    public double GetEpsilon()
-    {
-        if (Cities.Length < 2)
-        {
-            return 0.0;
-        }
-        double _distance = 0.0;
-        for (int i = 1; i < Cities.Length; i++)
-        {
-            double _dist = GameScene.GetDistance(Cities[i - 1], Cities[i]);
-            if (_dist > _distance)
-            {
-                _distance = _dist;
-            }
-        }
-        return _distance;
-    }
-
     internal string GetNames(GameScene scene)
     {
         return String.Join(" ", Cities.Select(x => (x == MainCity ? "<!cicon_ship_b>" : "") + x.Name));
@@ -90,17 +70,21 @@ internal class InterestUI : IFloatUI
 {
     // Origin cities
     private readonly List<CityUser> Cities;
+    private CityUser? MainCity;
     private ControlCollection citiesCollection;
-    private Dictionary<CityUser, IControl> citiesItems;
+    private readonly Dictionary<CityUser, Grid> citiesItems;
     private ScrollPreset? scrollPreset = null;
 
     // City clusters
     private readonly List<CityCluster> Clusters;
     private ControlCollection clustersCollection;
     private ScrollSettings clustersScroll;
-    private GrowArray<PathArrow> arrows;
+    private readonly Dictionary<CityCluster, Grid> clustersItems;
     private CityCluster? selected;
-    private List<CityUser> MainCities;
+    private readonly List<CityUser> MainCities;
+
+    // Arrows
+    private readonly GrowArray<PathArrow> arrows;
 
     // Parameters
     // TODO: History to remember changes
@@ -112,6 +96,7 @@ internal class InterestUI : IFloatUI
     {
         // Origin cities
         Cities = [city];
+        MainCity = city;
         citiesCollection = new ControlCollection(ContentRectangle.Zero);
         //citiesScrollSettings = new ScrollSettings();
         citiesItems = [];
@@ -120,14 +105,16 @@ internal class InterestUI : IFloatUI
         Clusters = [];
         clustersCollection = new ControlCollection(ContentRectangle.Zero);
         clustersScroll = new ScrollSettings();
-        arrows = new GrowArray<PathArrow>();
+        clustersItems = [];
         selected = null;
         MainCities = [];
+
+        // Arrows
+        arrows = new GrowArray<PathArrow>();
 
         // Build
         Construct();
     }
-
 
     private void Construct()
     {
@@ -143,13 +130,11 @@ internal class InterestUI : IFloatUI
         base.Main_control.OnClose += new Action(DestroyArrows);
     }
 
-
     private new void Finalize(int width = 600)
     {
         EndBack();
         base.Main_control.Size_local = new Vector2(width, this.GetPrivateField<int>("height"));
     }
-
 
     public static void OpenRegisterCity(CityUser city, GameScene scene)
     {
@@ -175,8 +160,7 @@ internal class InterestUI : IFloatUI
     }
 
 
-    // ORIGIN CITIES UI
-    // [add country][add close by cities]
+    // ORIGIN CITIES SECTION
 
     private const float CitiesScrollHeight = 200f;
 
@@ -218,7 +202,6 @@ internal class InterestUI : IFloatUI
         //citiesControlCollection.Parent.Parent.dirty_size = true; // When this is true, then the slider always goes to the 1st city
         if (scrollToLast)
         {
-
             float _pos = CitiesScrollHeight - MainData.Size_button - _y;
             if (_pos < 0)
             {
@@ -228,11 +211,10 @@ internal class InterestUI : IFloatUI
         }
     }
 
-
     private IControl GetOriginCityItem(CityUser city) //, ref float y)
     {
         // Cache
-        if (citiesItems.TryGetValue(city, out IControl? item))
+        if (citiesItems.TryGetValue(city, out Grid? item))
         {
             //y += item.Size_local.Y;
             return item;
@@ -241,10 +223,12 @@ internal class InterestUI : IFloatUI
         // Grid
         Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), 5, 1, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(MainData.Margin_content_items); //, MainData.Margin_content, MainData.Margin_content_items);
-        //_grid.Opacity = 0f;
+        _grid.Margin_local = new FloatSpace(MainData.Margin_content_items);
         _grid.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
-        // layout
+        citiesCollection.Transfer(_grid);
+        citiesItems.Add(city, _grid);
+
+        // Grid layout
         // 0 button
         _grid.SetColumn(1, SizeType.Pixels, MainData.Margin_content_items);
         _grid.SetColumn(2, SizeType.Pixels, MainData.Size_button); // add more cities
@@ -252,16 +236,30 @@ internal class InterestUI : IFloatUI
         _grid.SetColumn(4, SizeType.Pixels, MainData.Size_button); // delete
 
         // Name and country on a button-style panel
-        Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_button);
-        _grid.Transfer(_panel, 0, 0);
-        Label _label = LabelPresets.GetDefault(city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}", Scene.Engine);
-        _label.horizontal_alignment = HorizontalAlignment.Left;
-        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _grid.Transfer(_label, 0, 0);
-        _label = LabelPresets.GetDefault(city.GetCountryName(Scene), Scene.Engine, LabelPresets.Color_stats);
-        _label.horizontal_alignment = HorizontalAlignment.Right;
-        _label.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _grid.Transfer(_label, 0, 0 );
+        Button _button = ButtonPresets.GetGeneral(ContentRectangle.Stretched, Scene.Engine, out ControlCollection _content);
+        _grid.Transfer(_button, 0, 0);
+        Label _labelN = LabelPresets.GetDefault(city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}", Scene.Engine);
+        _labelN.horizontal_alignment = HorizontalAlignment.Left;
+        _labelN.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_labelN, 0, 0);
+        Label _labelC = LabelPresets.GetDefault(city.GetCountryName(Scene), Scene.Engine, LabelPresets.Color_stats);
+        _labelC.horizontal_alignment = HorizontalAlignment.Right;
+        _labelC.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_labelC, 0, 0 );
+        if (city == MainCity)
+            _labelN.Color = _labelC.Color = LabelPresets.Color_positive;
+
+        _button.OnMouseStillTime += () => TooltipPreset.Get("Click to set main origin city.", Scene.Engine).AddToControlBellow(_button);
+        _button.OnButtonPress += (Action)delegate
+        {
+            if (city != MainCity)
+            {
+                ColorMainCity(MainCity, LabelPresets.Color_main); // clear previous main city
+                ColorMainCity(MainCity = city, LabelPresets.Color_positive); // mark new main city
+                if (selected != null)
+                    GenerateArrows(selected);
+            }
+        };
 
         // Add more cities
         Button _addMore = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_duplicate, Scene.Engine).Control;
@@ -288,17 +286,31 @@ internal class InterestUI : IFloatUI
             citiesItems[city].CloseWithAnimation(close_if_no_animation: true);
             citiesItems.Remove(city);
             Cities.Remove(city);
+            if (MainCity == city)
+            {
+                MainCity = (Cities.Count > 0 ? Cities[0] : null);
+                ColorMainCity(MainCity, LabelPresets.Color_positive);
+            }
             UpdateOriginCities();
             GenerateClusters();
             UpdateCityClusters();
         };
 
-        // Finalize
-        citiesCollection.Transfer(_grid);
-        citiesItems.Add(city, _grid);
         return _grid; ;
+
+        // Helper
+        void ColorMainCity(CityUser? city, Color color)
+        {
+            if (city != null)
+            {
+                ((Label)citiesItems[city][1]).Color = color;
+                ((Label)citiesItems[city][2]).Color = color;
+            }
+        }
     }
 
+
+    // CLUSTERS SECTION
 
     /// <summary>
     /// Returns a ContentRectangle sized via MainData.Size_button
@@ -438,6 +450,7 @@ internal class InterestUI : IFloatUI
 
     private void UpdateCityClusters()
     {
+        clustersItems.Clear();
         clustersCollection.Clear();
         float _y = 0f;
         foreach(CityCluster cluster in Clusters)
@@ -447,35 +460,173 @@ internal class InterestUI : IFloatUI
         clustersCollection.Size_local = new Vector2(0f, _y);
         clustersCollection.Parent.Parent.dirty_size = true;
 
-        selected = Clusters.Count > 0 ? Clusters.Where(x => x.ID > 0).MaxBy(x => x.Cities.Length) : null;
+        selected = null;
+        if (Clusters.Count > 0)
+            selected = Clusters.Where(x => x.ID > 0).MaxBy(x => x.Cities.Length) ?? Clusters[0];
         if (selected != null)
         {
+            ((Label)clustersItems[selected][1]).Color = LabelPresets.Color_positive;
             GenerateArrows(selected);
         }
         else DestroyArrows();
     }
 
+    private void AddCityClusterItem(CityCluster cluster, ref float y)
+    {
+        // Main button with the city name TODO: this will be main "cluster" button
+        // Design:       [name,country     count] [on/off ] (arrows toggle)
+        //               [city names (scrolling)] [analyze]
+
+        // Grid 2x2
+        Grid _grid = new Grid(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f)/*ContentRectangle.Stretched*/, 2, 2, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items);
+        //_grid.Opacity = 1f;
+        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button);
+        //_content.Transfer(_grid);
+        clustersCollection.Transfer(_grid);
+        y += _grid.Size_local_total.Y;
+        clustersItems.Add(cluster, _grid);
+
+        // Hover button
+        Button _button = ButtonPresets.GetBlack(ContentRectangle.Stretched, Scene.Engine, out ControlCollection _content);
+        //_button.Margin_local = new FloatSpace(0f); // MainData.Margin_content_items / 2, MainData.Margin_content_items / 2);
+        _grid.Transfer(_button, 0, 0, 1, 2);
+
+        // Show arrows
+        _button.OnButtonPress += (Action)delegate
+        {
+            if (selected != null && selected.ID == cluster.ID)
+            {
+                selected = null;
+                DestroyArrows();
+                ((Label)_grid[1]).Color = LabelPresets.Color_main;
+            }
+            else
+            {
+                if (selected != null)
+                    ((Label)clustersItems[selected][1]).Color = LabelPresets.Color_main;
+                selected = cluster;
+                ((Label)_grid[1]).Color = LabelPresets.Color_positive;
+                GenerateArrows(cluster);
+            }
+        };
+
+        // Show briefly if not selected
+        _button.OnMouseStillTime += (Action)delegate
+        {
+            GetClusterTooltip(_grid, cluster);
+            if (selected == null)
+                GenerateArrows(cluster);
+        };
+
+        _button.OnMouseLeave += (Action)delegate
+        {
+            if (selected == null)
+                DestroyArrows();
+        };
+
+        // City name
+        Label _name = LabelPresets.GetBold("name", Scene.Engine);
+        _name.horizontal_alignment = HorizontalAlignment.Left;
+        _name.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_name, 0, 0);
+        if (selected == cluster)
+            _name.Color = LabelPresets.Color_positive;
+
+        // Num cites in the cluster
+        Label _count = LabelPresets.GetBold(cluster.Cities.Length.ToString(), Scene.Engine, LabelPresets.Color_stats);
+        _count.horizontal_alignment = HorizontalAlignment.Right;
+        _count.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        _grid.Transfer(_count, 0, 0);
+
+        // Select
+        ButtonItem _select = ButtonPresets.IconBlack(ContentRectangle.Stretched, MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off, Scene.Engine);
+        _grid.Transfer(_select.Control, 1, 0);
+        _select.Control.OnButtonPress += (Action)delegate
+        {
+            if (MainCities.Contains(cluster.MainCity))
+            {
+                MainCities.Remove(cluster.MainCity);
+                _select.Icon.Graphics = MainData.Icon_toggle_off;
+            }
+            else
+            {
+                MainCities.Add(cluster.MainCity);
+                _select.Icon.Graphics = MainData.Icon_toggle_on;
+            }
+        };
+        _select.Control.OnMouseStillTime += () => TooltipPreset.Get("Mark as cluster's main city", Scene.Engine).AddToControlRight(_select.Control);
+
+        // Bottom row - list of cities in the cluster
+        Label _cluster = LabelPresets.GetDefault(cluster.GetNames(Scene), Scene.Engine);
+        _cluster.Margin_local = new FloatSpace(MainData.Margin_content_items);
+        IControl _radio = LabelPresets.GetRadio(_cluster, 500, margin: new FloatSpace(MainData.Margin_content_items)); // TODO: dynamic width?
+        _radio.Mouse_visible = false;
+        _grid.Transfer(_radio, 0, 1);
+
+        // Change main city
+        Button _change = ButtonPresets.TextBlack(ContentRectangle.Stretched, "<!cicon_fast>", Scene.Engine).Control;
+        _grid.Transfer(_change, 1, 1);
+        _change.OnButtonPress += (Action)delegate
+        {
+            cluster.ChangeMainCity();
+            UpdateClusterInfo();
+            if (selected != null && selected.ID == cluster.ID)
+                GenerateArrows(cluster);
+        };
+        _change.OnMouseStillTime += () => TooltipPreset.Get("Change cluster's main city", Scene.Engine).AddToControlRight(_change);
+
+        // Helper
+        void UpdateClusterInfo()
+        {
+            string _text = cluster.MainCity.GetNameWithIcon(Scene)
+                + $" <!cicon_star>{cluster.MainCity.Level}"
+                + $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({cluster.MainCity.City.GetCountry(Scene).Name.GetTranslation(Localization.Language)})";
+            _name.Text = cluster.ID > 0 ? _text : "Singles";
+            _cluster.Text = cluster.GetNames(Scene);
+            _select.Icon.Graphics = MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off;
+        }
+        UpdateClusterInfo(); // get current data
+    }
+
+    private void GetClusterTooltip(IControl control, CityCluster cluster)
+    {
+        TooltipPreset _tooltip = TooltipPreset.Get("City cluster", Scene.Engine, can_lock: true);
+        int _alt = 0;
+        foreach (CityUser city in cluster.Cities
+            .OrderBy(c => c.City.GetCountry(Scene).Name.GetTranslation(Localization.Language))
+            .ThenBy(c => c.Name))
+            _tooltip.AddStatsLine(
+                city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}",
+                (city.GetHub(Scene.Session.Player) != null ? "<!cicon_storage> " : "") + city.GetCountryName(Scene),
+                (_alt++ & 1) == 1);
+        _tooltip.AddToControlRight(control);
+    }
+
+
+    // ARROWS SECTION
 
     private void GenerateArrows(CityCluster cluster)
     {
         DestroyArrows();
-        if (cluster.ID > 0)
+        if (MainCity == null || Cities.Count == 0) return;
+        // Origin cities connections
+        foreach (CityUser cc in Cities.Where(x => x != MainCity))
+            GenerateArrow(cc, MainCity, true);
+        // Singles
+        if (cluster.ID == -1)
         {
-            // NEW LOGIC - show main city and intra-cluster
-            // MainCity
-            foreach (CityUser city in Cities)
-                GenerateArrow(city, cluster.MainCity, false);
-
-            // Cluster connections
-            foreach (CityUser cc in cluster.Cities.Where(x => x != cluster.MainCity))
-                GenerateArrow(cc, cluster.MainCity, true);
-        }
-        else
-        {
-            if (Cities.Count == 0) return;
             foreach (CityUser cc in cluster.Cities)
-                GenerateArrow(cc, Cities[0], true);
+                GenerateArrow(cc, MainCity, true);
+            return;
         }
+        // MainCity to origin cities
+        foreach (CityUser city in Cities)
+            GenerateArrow(city, cluster.MainCity, false);
+        // Cluster connections
+        foreach (CityUser cc in cluster.Cities.Where(x => x != cluster.MainCity))
+            GenerateArrow(cc, cluster.MainCity, true);
     }
 
     private void AddArrow(CityUser origin, CityUser destination, Color color)
@@ -572,139 +723,6 @@ internal class InterestUI : IFloatUI
         else // if (originToDest)
             AddArrow(origin, destination, arrowColor); // we need an arrow to show no-connection status
     }
-
-
-    private void AddCityClusterItem(CityCluster cluster, ref float y)
-    {
-        // Main button with the city name TODO: this will be main "cluster" button
-        // Design:       [name,country     count] [on/off ] (arrows toggle)
-        //               [city names (scrolling)] [analyze]
-
-        // Grid 2x2
-        Grid _grid = new Grid(new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f)/*ContentRectangle.Stretched*/, 2, 2, SizeType.Weight);
-        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items);
-        //_grid.Opacity = 1f;
-        _grid.SetColumn(1, SizeType.Pixels, MainData.Size_button);
-        //_content.Transfer(_grid);
-        clustersCollection.Transfer(_grid);
-        y += _grid.Size_local_total.Y;
-
-        // Hover button
-        Button _button = ButtonPresets.GetBlack(/*new ContentRectangle(0f, y, 0f, MainData.Size_button * 2, 1f)*/ContentRectangle.Stretched, Scene.Engine, out ControlCollection _content);
-        //y += _button.Size_local_total.Y;
-        //_button.horizontal_alignment = HorizontalAlignment.Stretch;
-        _button.Margin_local = new FloatSpace(0f); // MainData.Margin_content_items / 2, MainData.Margin_content_items / 2);
-        //_button.use_multi_texture = true;
-        //clustersCollection.Transfer(_button);
-        _grid.Transfer(_button, 0, 0, 1, 2);
-
-        // Show arrows
-        _button.OnButtonPress += (Action)delegate
-        {
-            if (selected != null && selected.ID == cluster.ID)
-            {
-                selected = null;
-                DestroyArrows();
-            }
-            else
-            {
-                selected = cluster;
-                GenerateArrows(cluster);
-            }
-        };
-
-        // Show briefly if not selected
-        _button.OnMouseStillTime += (Action)delegate
-        {
-            GetClusterTooltip(_grid, cluster);
-            if (selected == null)
-                GenerateArrows(cluster);
-        };
-
-        _button.OnMouseLeave += (Action)delegate
-        {
-            if (selected == null)
-                DestroyArrows();
-        };
-
-        // City name
-        Label _name = LabelPresets.GetBold("name", Scene.Engine);
-        _name.horizontal_alignment = HorizontalAlignment.Left;
-        _name.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _grid.Transfer(_name, 0, 0);
-
-        // Num cites in the cluster
-        Label _count = LabelPresets.GetBold(cluster.Cities.Length.ToString(), Scene.Engine, LabelPresets.Color_stats);
-        _count.horizontal_alignment = HorizontalAlignment.Right;
-        _count.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        _grid.Transfer(_count, 0, 0);
-
-        // Select
-        ButtonItem _select = ButtonPresets.IconBlack(ContentRectangle.Stretched, MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off, Scene.Engine);
-        _grid.Transfer(_select.Control, 1, 0);
-        _select.Control.OnButtonPress += (Action)delegate
-        {
-            if (MainCities.Contains(cluster.MainCity))
-            {
-                MainCities.Remove(cluster.MainCity);
-                _select.Icon.Graphics = MainData.Icon_toggle_off;
-            }
-            else
-            {
-                MainCities.Add(cluster.MainCity);
-                _select.Icon.Graphics = MainData.Icon_toggle_on;
-            }
-        };
-        _select.Control.OnMouseStillTime += () => TooltipPreset.Get("Mark as cluster's main city", Scene.Engine).AddToControlRight(_select.Control);
-
-        // Bottom row - list of cities in the cluster
-        Label _cluster = LabelPresets.GetDefault(cluster.GetNames(Scene), Scene.Engine);
-        _cluster.Margin_local = new FloatSpace(MainData.Margin_content_items);
-        IControl _radio = LabelPresets.GetRadio(_cluster, 500, margin: new FloatSpace(MainData.Margin_content_items)); // TODO: dynamic width?
-        _radio.Mouse_visible = false;
-        _grid.Transfer(_radio, 0, 1);
-
-        // Change main city
-        Button _change = ButtonPresets.TextBlack(ContentRectangle.Stretched, "<!cicon_fast>", Scene.Engine).Control;
-        _grid.Transfer(_change, 1, 1);
-        _change.OnButtonPress += (Action)delegate
-        {
-            cluster.ChangeMainCity();
-            UpdateClusterInfo();
-            if (selected != null && selected.ID == cluster.ID)
-                GenerateArrows(cluster);
-        };
-        _change.OnMouseStillTime += () => TooltipPreset.Get("Change cluster's main city", Scene.Engine).AddToControlRight(_change);
-
-        // Helper
-        void UpdateClusterInfo()
-        {
-            string _text = cluster.MainCity.GetNameWithIcon(Scene)
-                + $" <!cicon_star>{cluster.MainCity.Level}"
-                + $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({cluster.MainCity.City.GetCountry(Scene).Name.GetTranslation(Localization.Language)})";
-            _name.Text = cluster.ID > 0 ? _text : cluster.Description;
-            _cluster.Text = cluster.GetNames(Scene);
-            _select.Icon.Graphics = MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off;
-        }
-        UpdateClusterInfo(); // get current data
-    }
-
-
-    private void GetClusterTooltip(IControl control, CityCluster cluster)
-    {
-        TooltipPreset _tooltip = TooltipPreset.Get("City cluster", Scene.Engine, can_lock: true);
-        int _alt = 0;
-        foreach (CityUser city in cluster.Cities
-            .OrderBy(c => c.City.GetCountry(Scene).Name.GetTranslation(Localization.Language))
-            .ThenBy(c => c.Name))
-            _tooltip.AddStatsLine(
-                city.GetNameWithIcon(Scene) + $" <!cicon_star>{city.Level}",
-                (city.GetHub(Scene.Session.Player) != null ? "<!cicon_storage> " : "") + city.GetCountryName(Scene), 
-                (_alt++ & 1) == 1);
-        _tooltip.AddToControlRight(control);
-    }
-
 
     private void Update()
     {

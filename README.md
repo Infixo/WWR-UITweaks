@@ -52,6 +52,8 @@
   - Groups into clusters cities that have interest in a group of origin cities.
   - Displays connections within a cluster and between the cluster and origin cities.
   - Use Ctrl-RClick on a city to start it and later add more origin cities.
+  - (0.7.1) Displays connections between origin cities.
+  - (0.7.1) Ability to mark any origin city as main city.
 
 ### Troubleshooting
 - Output messages are logged into UITweaksLog.txt in the %TEMP% dir.
@@ -66,6 +68,10 @@
 - Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
 
 ### Changelog
+- v0.7.1 (2025-10-27)
+  - Planner: Displays connections between origin cities.
+  - Planner: Ability to mark any origin city as main city.
+  - Removed issue with range when editing empty plane routes.
 - v0.7.0 (2025-10-26)
   - New feature: Route Planner
 - v0.6.0 (2025-10-20)
