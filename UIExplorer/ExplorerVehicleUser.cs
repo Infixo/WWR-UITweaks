@@ -4,12 +4,12 @@ using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
-using STMG.Engine;
 using STMG.UI.Control;
 using STVisual.Utility;
 using Utilities;
+using UITweaks.UIFloating;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIExplorer;
 
 
 [HarmonyPatch(typeof(ExplorerVehicleUser))]
@@ -184,5 +184,13 @@ public static class ExplorerVehicleUser_Patches
                 result = __instance.User.ID.CompareTo(_item.User.ID);
             __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
         }
+    }
+
+
+    [HarmonyPatch("AddVehicleInfo"), HarmonyPostfix]
+    public static void AddVehicleInfo(TooltipPreset tooltip, VehicleBaseUser vehicle, GameScene scene)
+    {
+        // Add info about the hub
+        tooltip.AddStatsLine(vehicle.Hub.GetNameWithIcon(scene) + " <!cicon_storage>", Localization.GetCompany("hub"));
     }
 }
