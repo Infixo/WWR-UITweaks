@@ -14,7 +14,7 @@ using STVisual.Utility;
 using System.Runtime.CompilerServices;
 using Utilities;
 
-namespace UITweaks.Patches;
+namespace UITweaks.Floating;
 
 
 [HarmonyPatch(typeof(RouteUI))]
@@ -180,7 +180,8 @@ public static class RouteUI_Patches
         _grid.Transfer(_sell, 8, 0);
         _sell.OnMouseStillTime += (Action)delegate
         {
-            BaseVehicleUI.GetSellTooltip(_sell, vehicle, __instance.Scene);
+            TooltipPreset.Get(Localization.GetGeneral("upgrade"), __instance.Scene.Engine).AddToControlAuto(_sell);
+            //BaseVehicleUI.GetSellTooltip(_sell, vehicle, __instance.Scene);
         };
         _sell.OnButtonPress += (Action)delegate
         {
