@@ -1,12 +1,13 @@
 ﻿using HarmonyLib;
-using Utilities;
 using STM.Data;
+using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -115,5 +116,19 @@ public static class CreateNewRouteAction_Patches
         }
 
         return false; // skip original
+    }
+
+
+    // This method is only called from within CreateNewRoute in case of a route edit.
+    // The vehicle entity it returns is used later to virtually check if the route is valid.
+    // It causes problems with planes because it returns the one with lowest range which makes most routes are invalid when editing.
+    [HarmonyPatch(typeof(Line), "GetEntity"), HarmonyPostfix]
+    public static void GetEntity(Line __instance, ref VehicleBaseEntity __result)
+    {
+        // Only specific case is patched - no vehicles and plane route
+        if (__instance.Vehicles == 0 && __instance.GetPrivateField<byte>("vehicle_type") == 2)
+        {
+            __result = MainData.Planes[^1];
+        }
     }
 }
