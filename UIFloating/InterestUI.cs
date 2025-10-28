@@ -874,14 +874,6 @@ public class DBSCAN
     /// <returns></returns>
     private List<Point> GetNeighbors(Point p, List<Point> points)
     {
-        return [.. points.Where(other => Distance(p, other) < eps).OrderBy(other => Distance(p, other))];
-    }
-
-    private static double Distance(Point a, Point b)
-    {
-        double _dist = GameScene.GetDistance(a.City, b.City);
-        if (a.City.City.Country_id != b.City.City.Country_id)
-            _dist *= 1.5f;
-        return _dist;
+        return [.. points.Where(other => GameScene.GetDistance(p.City, other.City) < eps).OrderBy(other => GameScene.GetDistance(p.City, other.City))];
     }
 }
