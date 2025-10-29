@@ -1,13 +1,14 @@
-﻿using HarmonyLib;
+﻿using Microsoft.Xna.Framework;
+using HarmonyLib;
 using STM.Data;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
+using STM.UI.Stats;
 using STMG.UI.Control;
 using STVisual.Utility;
 using Utilities;
-using UITweaks.UIFloating;
 
 namespace UITweaks.UIExplorer;
 
@@ -187,10 +188,34 @@ public static class ExplorerVehicleUser_Patches
     }
 
 
-    [HarmonyPatch("AddVehicleInfo"), HarmonyPostfix]
-    public static void AddVehicleInfo(TooltipPreset tooltip, VehicleBaseUser vehicle, GameScene scene)
+    // Modded: info about hub and position of the vehicle on the route.
+    [HarmonyPatch("AddVehicleInfo"), HarmonyPrefix]
+    public static bool ExplorerVehicleUser_AddVehicleInfo_Prefix(TooltipPreset tooltip, VehicleBaseUser vehicle, GameScene scene)
     {
-        // Add info about the hub
-        tooltip.AddStatsLine(vehicle.Hub.GetNameWithIcon(scene) + " <!cicon_storage>", Localization.GetCompany("hub"));
+        tooltip.AddSeparator();
+        tooltip.AddBoldLabel(Localization.GetGeneral("balance"), null, center: true);
+        Company _company = scene.Session.Companies[vehicle.Company];
+        IControl _graph = ChartLine.GetSingle(new GraphSettings((int t) => typeof(ExplorerVehicleUser).CallPrivateStaticMethod<long>("GetValue", [t, vehicle]), 12, -1L, -1L, 2L)
+        {
+            update_tooltip = delegate (TooltipPreset t, GraphSettings s, int id)
+            {
+                ExplorerVehicleUser.UpdateGraphTooltip(t, s, id, vehicle, scene);
+            }
+        }, fill: true, _company.GetGridColor());
+        _graph.vertical_alignment = VerticalAlignment.Top;
+        _graph.Margin_local = new FloatSpace(MainData.Margin_content);
+        _graph.Size_local = new Vector2(200f, 100f);
+        tooltip.AddContent(_graph);
+        // Route
+        tooltip.AddSeparator();
+        tooltip.AddBoldLabel(vehicle.GetLine(scene)?.GetName() ?? Localization.GetVehicle("route"), null, center: true);
+        for (int i = 0; i < vehicle.Route.Instructions.Cities.Length; i++)
+        {
+            CityUser _city = vehicle.Route.Instructions.Cities[i];
+            string _hub = vehicle.Hub.City == _city.City.City_id ? "  <!cicon_storage>" : "";
+            string _prefix = _city == vehicle.Route.Current ? "<!cicon_ship_b> " : (_city == vehicle.Route.Destination && vehicle.Route.Moving ? "<!cicon_right> " : "");
+            tooltip.AddStatsLine(_prefix + _city.GetNameWithIcon(scene) + _hub, (i + 1).ToString());
+        }
+        return false;
     }
 }
