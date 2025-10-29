@@ -213,9 +213,17 @@ public static class ExplorerVehicleUser_Patches
         {
             CityUser _city = vehicle.Route.Instructions.Cities[i];
             string _hub = vehicle.Hub.City == _city.City.City_id ? "  <!cicon_storage>" : "";
-            string _prefix = _city == vehicle.Route.Current ? "<!cicon_ship_b> " : (_city == vehicle.Route.Destination && vehicle.Route.Moving ? "<!cicon_right> " : "");
+            string _prefix = _city == vehicle.Route.Current ? "<!cicon_ship_b> " : (_city == vehicle.Route.Destination && vehicle.Route.Moving ? GetProgressIcon(vehicle.Route.Progress) : "");
             tooltip.AddStatsLine(_prefix + _city.GetNameWithIcon(scene) + _hub, (i + 1).ToString());
         }
         return false;
+        // helper for progress icon
+        static string GetProgressIcon(decimal progress)
+        {
+            if (progress > 0.9m) return "<!cicon_fastest>";
+            if (progress > 0.75m) return "<!cicon_faster>";
+            if (progress > 0.5m) return "<!cicon_fast>";
+            return "<!cicon_right> ";
+        }
     }
 }

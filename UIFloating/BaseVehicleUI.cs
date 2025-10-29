@@ -55,7 +55,7 @@ public static class BaseVehicleUI_Patches
         _edit.OnButtonPress += () => __instance.CallPrivateMethodVoid("Edit", []);
 
         // 4 Change
-        Button _change = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_fast, __instance.Scene.Engine).Control;
+        Button _change = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_fastest, __instance.Scene.Engine).Control;
         _change.Enabled = _enabled && __instance.Scene.Session.GetPlayer().Line_manager.Lines.Count > 0;
         _grid.Transfer(_change, 4, 0);
         _change.OnMouseStillTime += () => TooltipPreset.Get(Localization.GetVehicle("change_route"), __instance.Scene.Engine).AddToControlAutoVertical(_change);

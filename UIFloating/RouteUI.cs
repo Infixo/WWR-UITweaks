@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using Microsoft.Xna.Framework;
+using HarmonyLib;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -12,6 +13,7 @@ using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
 using System.Runtime.CompilerServices;
+using UITweaks.UIFloating;
 using Utilities;
 
 namespace UITweaks.Floating;
@@ -65,7 +67,7 @@ public static class RouteUI_Patches
 
         Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, MainData.Size_button, 1f), 9, 1, SizeType.Weight);
         _grid.horizontal_alignment = HorizontalAlignment.Stretch;
-        _grid.Margin_local = new FloatSpace(0f, MainData.Margin_content_items, MainData.Margin_content, MainData.Margin_content_items);
+        _grid.Margin_local = new FloatSpace(0f, 0f, MainData.Margin_content, MainData.Margin_content_items);
         _grid.Opacity = 0f;
         ___vehicles.Transfer(_grid);
 
@@ -603,5 +605,24 @@ public static class RouteUI_Patches
     {
         for (int vt = 0; vt < 4; vt++)
             ui.Extra().Buttons[vt].Enabled = (ui.Line.Vehicles == 0 && ui.Line.Vehicle_type != vt);
+    }
+
+
+    [HarmonyPatch("GetVehicles"), HarmonyPostfix]
+    public static void RouteUI_GetVehicles_Postfix(RouteUI __instance)
+    {
+        if (!__instance.TryGetControl("vehicles", out IControl? control) || control == null)
+        {
+            Log.Write("Error. Failed to get the control grid.");
+            return;
+        }
+        int _height = MainData.Size_button * 2 + MainData.Margin_content_items * 4;
+        Vector2 size = control.Size_local;
+        Vector2 location = control.Location_local;
+        control.Size_local = size + new Vector2(0f, (float)_height);
+        control.Location_local = location;
+        __instance.SetPrivateField("height", __instance.GetPrivateField<int>("height") + _height);
+        control.dirty_size = true;
+        control.dirty_location = true;
     }
 }
