@@ -12,6 +12,7 @@
 - InfoUI
   - (0.4) Improved vehicles tooltips.
   - (0.6) Button to close all floating windows at once.
+- (0.8) Vehicle tooltip has info about its hub and location on the route.
 
 ### Explorers (new columns)
 - Countries. Average city level, how many cities are not connected to any lines.
@@ -39,6 +40,7 @@
   - Quarterly efficieny is calculated using weighted average on their capacity.
   - (0.2) One-click upgrade to the next in chain.
   - (0.4) Shows evaluations done by a hub manager in a tooltip.
+  - (0.8) Separate edit/change line buttons (less clicks), space for more vehicles.
 - UpgradeUI. More info in the vehicle selection drop-down. Quick next/prev from the same company buttons.
 - CityUI. Travellers toolip shows lines at the top (no more scrolling!) and indirect connections are sorted by number of people.
 - CountryUI.
@@ -47,7 +49,9 @@
 - HubUI.
   - (0.3) Hire manager specific for a country of currently used vehicles. 
   - (0.4) Info about generated plans and list of brands.
-- (0.4) VehicleUI shows line number.
+- VehicleUI.
+  - (0.4) VehicleUI shows line number.
+  - (0.8) Ability to move a single vehicle to a different hub.
 - (0.7) NEW Route Planner.
   - Groups into clusters cities that have interest in a group of origin cities.
   - Displays connections within a cluster and between the cluster and origin cities.
@@ -65,9 +69,13 @@
 - [Harmony v2.4.1 for .net 8.0](https://github.com/pardeike/Harmony/releases/tag/v2.4.1.0). The correct dll is provided in the release files.
 
 ### Known Issues
-- Explorer Lines. Calculating passengers for hundreds of lines may take a bit :(.
+- None atm.
 
 ### Changelog
+- v0.8.0 (2025-10-30)
+  - Ability to move a single vehicle to a different hub.
+  - Vehicle tooltip has info about its hub and location on the route.
+  - RouteUI: separate edit/change line buttons (less clicks), space for more vehicles.
 - v0.7.1 (2025-10-27)
   - Planner: Displays connections between origin cities.
   - Planner: Ability to mark any origin city as main city.
