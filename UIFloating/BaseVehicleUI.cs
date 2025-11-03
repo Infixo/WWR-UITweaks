@@ -51,8 +51,18 @@ public static class BaseVehicleUI_Patches
         Button _edit = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_cogwheel, __instance.Scene.Engine).Control;
         _edit.Enabled = _enabled;
         _grid.Transfer(_edit, 2, 0);
-        _edit.OnMouseStillTime += () => TooltipPreset.Get(Localization.GetVehicle("edit_route"), __instance.Scene.Engine).AddToControlAutoVertical(_edit);
-        _edit.OnButtonPress += () => __instance.CallPrivateMethodVoid("Edit", []);
+        _edit.OnMouseStillTime += (Action)delegate
+        {
+            TooltipPreset tt = TooltipPreset.Get(Localization.GetVehicle("edit_route"), __instance.Scene.Engine);
+            tt.AddDescription("Click to edit the route for all vehicles.");
+            tt.AddDescription("Ctrl+Click to edit the vehicle's route and create a new one.");
+            tt.AddToControlAutoVertical(_edit);
+        };
+        _edit.OnButtonPress += (Action)delegate
+        {
+            CreateNewRouteAction _action = new(__instance.Scene, __instance.Scene.Engine.Keys.Ctrl ? __instance.Vehicle : __instance.Vehicle.GetLine(__instance.Scene));
+            __instance.Scene.SetOverrideAction(_action);
+        };
 
         // 4 Change
         Button _change = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_fastest, __instance.Scene.Engine).Control;
