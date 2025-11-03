@@ -1,5 +1,5 @@
-﻿using Microsoft.Xna.Framework;
-using HarmonyLib;
+﻿using HarmonyLib;
+using Microsoft.Xna.Framework;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -13,10 +13,10 @@ using STMG.UI.Control;
 using STMG.UI.Utility;
 using STVisual.Utility;
 using System.Runtime.CompilerServices;
-using UITweaks.UIFloating;
+using UITweaks.UIExplorer;
 using Utilities;
 
-namespace UITweaks.Floating;
+namespace UITweaks.UIFloating;
 
 
 [HarmonyPatch(typeof(RouteUI))]
@@ -120,7 +120,7 @@ public static class RouteUI_Patches
         };
 
         // Name
-        Label _name = LabelPresets.GetDefault(vehicle.GetName() + (vehicle.Route.Moving ? " <!cicon_right>" : ""), __instance.Scene.Engine);
+        Label _name = LabelPresets.GetDefault(vehicle.GetName(), __instance.Scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         _content.Transfer(_name);
 
@@ -463,7 +463,7 @@ public static class RouteUI_Patches
 
 
     [HarmonyPatch("Update"), HarmonyPostfix]
-    public static void RouteUI_Update_Postfix(RouteUI __instance)
+    public static void RouteUI_Update_Postfix(RouteUI __instance, RouteUI.VehicleItem[] ___items)
     {
         if (__instance.Main_control.Closing || __instance.Main_control.Ui == null)
             return;
@@ -472,7 +472,7 @@ public static class RouteUI_Patches
         // Balance, efficieny and vehicles updated
         // Throughput
         __instance.Extra().Label_Throughput.Text = StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>";
-        // Vehicles
+        // Num of vehicles
         string typeIcon = "?";
         switch (__instance.Line.Vehicle_type)
         {
@@ -485,6 +485,15 @@ public static class RouteUI_Patches
         // Buttons
         if (__instance.Company == __instance.Scene.Session.GetPlayer())
             __instance.UpdateButtons();
+
+        // Vehicles
+        if ((__instance.Scene.Session.Frame & 0x1F) == 0)
+            foreach (var item in ___items)
+            {
+                Button _vehicle = (Button)((Grid)item.Control)[1];
+                Label _name = (Label)((ControlCollection)_vehicle.Content)[1];
+                _name.Text = (item.Vehicle.Route.Loading ? "<!cicon_ship_b>" : item.Vehicle.Route.GetProgressIcon()) + " " + item.Vehicle.GetName();
+            }
     }
 
 
