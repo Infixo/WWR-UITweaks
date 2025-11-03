@@ -278,10 +278,11 @@ public static class ExplorerCity_Patches
     }
 
 
-    // Extension to get the "biggest crowd" - a destination with the higherst number of travellers
+    // Extension to get the "biggest crowd" - a destination with the highest number of travellers
     public static int GetBiggestCrowd(this CityUser city)
     {
-        Dictionary<CityUser, int> travellers = city.GetAllPassengers();
+        Dictionary<CityUser, int> travellers = [];
+        city.GetAllPassengers(travellers, true);
         return travellers.Count > 0 ? travellers.Values.Max() : 0;
     }
 

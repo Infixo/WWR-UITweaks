@@ -72,6 +72,8 @@
 - None atm.
 
 ### Changelog
+- v0.8.1 (2025-11-02)
+  - New, much faster algorithm to calculate waiting passengers.
 - v0.8.0 (2025-10-30)
   - Ability to move a single vehicle to a different hub.
   - Vehicle tooltip has info about its hub and location on the route.

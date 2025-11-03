@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿//#define GETWAITING
+
+using HarmonyLib;
 using STM.Data;
 using STM.Data.Entities;
 using STM.GameWorld;
@@ -7,6 +9,7 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
 using STVisual.Utility;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Utilities;
 
@@ -21,9 +24,7 @@ public static class ExplorerLine_Patches
     {
         public double Distance;
         public int Age;
-        //public long Waiting = -1L;
         public string Country = "";
-        //public bool Active = true;
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerLine line) => _extras.GetOrCreateValue(line);
@@ -81,7 +82,8 @@ public static class ExplorerLine_Patches
         return false;
     }
 
-    /*
+
+#if GETWAITING    
     // Simple stopwatch and counters to measure ExplorerLine performance
     public static Stopwatch sw = new();
 
@@ -105,7 +107,7 @@ public static class ExplorerLine_Patches
         Log.Write($"Elapsed time: {sw.ElapsedMilliseconds} ms, IC={WorldwideRushExtensions.CounterIsConn} GP={WorldwideRushExtensions.CounterGetPath}");
         Log.Write($"Counters: 0= {WorldwideRushExtensions.CounterGetLine0} 1={WorldwideRushExtensions.CounterGetLine1} 2={WorldwideRushExtensions.CounterGetLine2} 3={WorldwideRushExtensions.CounterGetLine3} ");
     }
-    */
+#endif    
 
 
     [HarmonyPatch(typeof(InfoUI), "GetRouteTooltip"), HarmonyPrefix]
@@ -279,11 +281,14 @@ public static class ExplorerLine_Patches
         InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Age));
 
         // 8 Evaluation
-        //__instance.Extra().Waiting = __instance.Line.GetWaiting();
+#if GETWAITING
+        InsertLabelAt(8, __instance.Line.GetWaiting().ToString());
+#else
         if (AITweaksLink.Active)
             InsertLabelAt(8, AITweaksLink.GetNumEvaluations(__instance.Line) > 0 ? "<!cicon_ship_b>" : ".");
         else
             InsertLabelAt(8, "");
+#endif
 
         return false;
     }
