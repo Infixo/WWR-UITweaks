@@ -29,6 +29,7 @@ public static class RouteUI_Patches
         public Label Label_Throughput;
         public Label Label_Vehicles;
         public Button[] Buttons = new Button[4];
+        public Dictionary<CityUser, Grid> CitiesItems = [];
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
     }
     private static readonly ConditionalWeakTable<RouteUI, ExtraData> _extras = [];
@@ -303,7 +304,7 @@ public static class RouteUI_Patches
         //RouteCycle _cycle = default(RouteCycle);
         float _y = 0f;
         for (int i = 0; i< __instance.Line.Instructions.Cities.Length; i++)
-            __instance.RouteUI_GetRouteControl_Prefix(route, i, ref _y);
+            __instance.Extra().CitiesItems.TryAdd(__instance.Line.Instructions.Cities[i], __instance.RouteUI_GetRouteControl_Prefix(route, i, ref _y));
         //_cycle.Move(Line.Instructions);
         //while (_cycle.Current != 0)
         //{
@@ -315,7 +316,7 @@ public static class RouteUI_Patches
 
 
     //[HarmonyPatch("GetRouteControl"), HarmonyPrefix]
-    public static bool RouteUI_GetRouteControl_Prefix(this RouteUI __instance, ControlCollection route, int index, ref float y)
+    public static Grid RouteUI_GetRouteControl_Prefix(this RouteUI __instance, ControlCollection route, int index, ref float y)
     {
         CityUser _city = __instance.Line.Instructions.Cities[index];
 
@@ -361,13 +362,13 @@ public static class RouteUI_Patches
         _grid.Transfer(_city_label, 1, 0);
 
         // 2 Waiting
-        Label _waiting = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.Line.GetWaiting(_city)), __instance.Scene.Engine);
+        Label _waiting = LabelPresets.GetDefault(__instance.Line.GetWaiting(_city).ToString(), __instance.Scene.Engine);
         _waiting.horizontal_alignment = HorizontalAlignment.Right;
         _grid.Transfer(_waiting, 2, 0);
 
         // 3 Empty, place for scroll
 
-        return false;
+        return _grid;
     }
 
 
@@ -487,12 +488,28 @@ public static class RouteUI_Patches
             __instance.UpdateButtons();
 
         // Vehicles
-        if ((__instance.Scene.Session.Frame & 0x1F) == 0)
+        if ((__instance.Scene.Session.Frame & 0x1F) == 3)
             foreach (var item in ___items)
             {
                 Button _vehicle = (Button)((Grid)item.Control)[1];
                 Label _name = (Label)((ControlCollection)_vehicle.Content)[1];
                 _name.Text = (item.Vehicle.Route.Loading ? "<!cicon_ship_b>" : item.Vehicle.Route.GetProgressIcon()) + " " + item.Vehicle.GetName();
+            }
+
+        // Cities - color
+        if ((__instance.Scene.Session.Frame & 0x3F) == 2)
+            foreach (var pair in __instance.Extra().CitiesItems)
+            {
+                Label _city_label = (Label)pair.Value[1];
+                _city_label.Color = pair.Key.OvercrowdedColor(LabelPresets.Color_main);
+            }
+
+        // Cities - waiting
+        if ((__instance.Scene.Session.Frame & 0x7F) == 1)
+            foreach (var pair in __instance.Extra().CitiesItems)
+            {
+                Label _waiting = (Label)pair.Value[2];
+                _waiting.Text = __instance.Line.GetWaiting(pair.Key).ToString();
             }
     }
 
