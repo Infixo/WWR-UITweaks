@@ -117,7 +117,7 @@ public static class RouteUI_Patches
         _button.SetCloseAnimation(AnimationPresets.Opacity(0f, 0.2f));
         _button.OnMouseStillTime += (Action)delegate
         {
-            HubUI.GetVehicleTooltip(vehicle, _button, __instance.Scene);
+            HubUI.GetVehicleTooltip(vehicle, _grid, __instance.Scene);
         };
 
         // Name
@@ -168,7 +168,7 @@ public static class RouteUI_Patches
         _grid.Transfer(_duplicate, 6, 0);
         _duplicate.OnMouseStillTime += (Action)delegate
         {
-            BaseVehicleUI.GetDuplicateTooltip(_duplicate, [vehicle], __instance.Scene); // original took only 1 vehicle, now it is an array
+            BaseVehicleUI.GetDuplicateTooltip(_grid, [vehicle], __instance.Scene); // original took only 1 vehicle, now it is an array
         };
         _duplicate.OnButtonPress += (Action)delegate
         {
