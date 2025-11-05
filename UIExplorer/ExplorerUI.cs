@@ -42,26 +42,27 @@ public static class ExplorerUI_Patches
     public static bool ExplorerUI_ContainsText_Prefix(ref bool __result, IExplorerItem item, string text)
     {
         __result = true;
-        string[] keywords = text.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        bool _or = text.Contains('|');
+        bool _and = text.Contains('&');
+        string[] keywords = text.Split(['|', '&'], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
         // check labels
         for (int j = 0; j < item.Labels.Length; j++)
-        {
-            if (keywords.Any(k => item.Labels[j].Text.Contains(k, System.StringComparison.OrdinalIgnoreCase)))
-                return false; // actually returns true - found
-        }
+            if (Check(item.Labels[j].Text)) return false;
 
         // check path for a vehicle
         if (item is ExplorerVehicleUser _user)
-        {
-            for (int i = 0; i < _user.User.Route.Instructions.Cities.Length; i++)
-            {
-                if (keywords.Any(k => _user.User.Route.Instructions.Cities[i].Name.Contains(k, System.StringComparison.OrdinalIgnoreCase)))
-                    return false; // actually returns true - found
-            }
-        }
+            if (Check(String.Join(" ", _user.User.Route.Instructions.Cities.Select(c => c.Name)))) return false;
 
         __result = false;
         return false; // not found
+
+        // Helper
+        bool Check(string text)
+        {
+            if (_or) return keywords.Any(k => text.Contains(k, System.StringComparison.OrdinalIgnoreCase));
+            if (_and) return keywords.All(k => text.Contains(k, System.StringComparison.OrdinalIgnoreCase));
+            return text.Contains(keywords[0], System.StringComparison.OrdinalIgnoreCase);
+        }
     }
 }
