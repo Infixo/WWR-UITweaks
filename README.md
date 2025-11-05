@@ -9,6 +9,9 @@
   - (0.5) Resorts are marked with an umbrella icon.
   - (0.6) RClick opens routes, w/ Shift opens a Hub.
   - (0.6) Info about number of routes in a city available on the map.
+- (0.9) Explorers (all).
+  - Selecting an item in an explorer with ctrl or shift does not close it.
+  - Explorer search field is longer and allows multi-search (use | to separate keywords).
 - InfoUI
   - (0.4) Improved vehicles tooltips.
   - (0.6) Button to close all floating windows at once.
@@ -35,12 +38,13 @@
 - RouteUI.
   - (0.5) Ability to change the assigned vehicle type. Only when the line is empty.
   - Extra info about the line. Quarterly throughput, number of vehicles, total distance.
-  - Waiting passengers in each city and on the entire line.
-  - City names are colores based on indirect capacity usage.
+  - Waiting passengers in each city and on the entire line. (0.9) Auto-updates.
+  - City names are colores based on indirect capacity usage. (0.9) Auto-updates.
   - Quarterly efficieny is calculated using weighted average on their capacity.
-  - (0.2) One-click upgrade to the next in chain.
+  - (0.2) One-click upgrade to the next in chain. (0.9) Added tooltip.
   - (0.4) Shows evaluations done by a hub manager in a tooltip.
   - (0.8) Separate edit/change line buttons (less clicks), space for more vehicles.
+  - (0.9) Vehicle list shows their status (moving/loadin).
 - UpgradeUI. More info in the vehicle selection drop-down. Quick next/prev from the same company buttons.
 - CityUI. Travellers toolip shows lines at the top (no more scrolling!) and indirect connections are sorted by number of people.
 - CountryUI.
@@ -52,6 +56,7 @@
 - VehicleUI.
   - (0.4) VehicleUI shows line number.
   - (0.8) Ability to move a single vehicle to a different hub.
+  - (0.9) Ctrl-click to edit isolated vehicle route. Click edits the line for all vehicles.
 - (0.7) NEW Route Planner.
   - Groups into clusters cities that have interest in a group of origin cities.
   - Displays connections within a cluster and between the cluster and origin cities.
@@ -72,6 +77,13 @@
 - None atm.
 
 ### Changelog
+- v0.9.0 (2025-11-05)
+  - Selecting an item in an explorer with ctrl or shift does not close it.
+  - Explorer search field is longer and allows multi-search (use | to separate keywords).
+  - In VehicleUI, ctrl-click to edit isolated vehicle route. Click edits the line for all vehicles.
+  - RouteUI auto-updates cities overcrowded color, number of waiting passengers and vehicle's state icons.
+  - One-click upgrade displays a tooltip.
+  - Fixed one-click upgrade not checking for range.
 - v0.8.1 (2025-11-02)
   - New, much faster algorithm to calculate waiting passengers.
 - v0.8.0 (2025-10-30)
