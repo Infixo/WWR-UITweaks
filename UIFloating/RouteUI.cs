@@ -6,6 +6,7 @@ using STM.GameWorld;
 using STM.GameWorld.Commands;
 using STM.GameWorld.Users;
 using STM.UI;
+using STM.UI.Explorer;
 using STM.UI.Floating;
 using STM.UI.Stats;
 using STMG.UI;
@@ -178,34 +179,46 @@ public static class RouteUI_Patches
         };
 
         // Upgrade to the next in chain
-        Button _sell = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_upgrade, __instance.Scene.Engine).Control;
-        _sell.Enabled = vehicle.Company == __instance.Scene.Session.Player;
-        _grid.Transfer(_sell, 8, 0);
-        _sell.OnMouseStillTime += (Action)delegate
+        Button _better = ButtonPresets.IconGeneral(ContentRectangle.Stretched, MainData.Icon_upgrade, __instance.Scene.Engine).Control;
+        _better.Enabled = vehicle.Company == __instance.Scene.Session.Player;
+        _grid.Transfer(_better, 8, 0);
+        Company _company = __instance.Scene.Session.Companies[__instance.Scene.Session.Player];
+        _better.OnMouseStillTime += (Action)delegate
         {
-            TooltipPreset.Get(Localization.GetGeneral("upgrade"), __instance.Scene.Engine).AddToControlAuto(_sell);
-            //BaseVehicleUI.GetSellTooltip(_sell, vehicle, __instance.Scene);
-        };
-        _sell.OnButtonPress += (Action)delegate
-        {
-            VehicleBaseEntity? entity = null;
-            VehicleCompanyEntity vehicleCompany = vehicle.Entity_base.Company.Entity;
-            for (int i = 0; i < vehicleCompany.Vehicles.Count; i++)
+            VehicleBaseEntity? entity = GetBetter(vehicle);
+            if (entity == null)
             {
-                if (vehicleCompany.Vehicles[i].Price > vehicle.Entity_base.Price && vehicleCompany.Vehicles[i].CanBuy(__instance.Scene.Session.GetPlayer(), vehicle.Hub.Longitude))
-                {
-                    entity = vehicleCompany.Vehicles[i];
-                    break;
-                }
+                TooltipPreset.Get("<!cicon_lock> " + Localization.GetGeneral("upgrade"), __instance.Scene.Engine).AddToControlAuto(_better);
+                return;
             }
+            TooltipPreset tt = TooltipPreset.Get(entity.GetNameWithIcons(), __instance.Scene.Engine);
+            CityUser _hub = __instance.Scene.Cities[vehicle.Hub.City].User;
+            long _price = entity.GetPrice(__instance.Scene, _company, _hub);
+            ExplorerVehicleEntity.AppendPriceNoAdjust(tt, entity, _hub, _company, __instance.Scene);
+            ExplorerVehicleEntity.AppendPriceAdjust(tt, __instance.Scene);
+            tt.AddPrice(_price, __instance.Scene.currency, null, 0, "total_price");
+            tt.AddToControlAuto(_better);
+        };
+        _better.OnButtonPress += (Action)delegate
+        {
+            VehicleBaseEntity? entity = GetBetter(vehicle);
             if (entity != null)
             {
                 vehicle.UpgradeWith(entity, __instance.Scene);
-                __instance.Main_control.Ui?.RemoveNestedControlsByParent(_sell);
+                __instance.Main_control.Ui?.RemoveNestedControlsByParent(_better);
             }
             else
                 MainData.Sound_error.Play();
         };
+        VehicleBaseEntity? GetBetter(VehicleBaseUser vehicle)
+        {
+            VehicleCompanyEntity _vehicle_company = vehicle.Entity_base.Company.Entity;
+            int _range = vehicle is PlaneUser _plane ? (int)_plane.Route.Instructions.GetLongestDistance() : 0;
+            for (int i = 0; i < _vehicle_company.Vehicles.Count; i++)
+                if (_vehicle_company.Vehicles[i].Type_name == vehicle.Entity_base.Type_name && vehicle.Entity_base.IsBetter(_company, _vehicle_company.Vehicles[i], vehicle.Hub, _range))
+                    return _vehicle_company.Vehicles[i];
+            return null;
+        }
 
         //foreach (VehicleBaseEntity item in filtered)
         //Log.Write($"{item.Tier} {item.Translated_name} from {item.Company.Entity.Translated_name} price: {item.Price}");
