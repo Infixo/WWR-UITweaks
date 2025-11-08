@@ -122,27 +122,22 @@ public static class RouteUI_Patches
         };
 
         // Name
-        Label _name = LabelPresets.GetDefault(vehicle.GetName(), __instance.Scene.Engine);
+        Label _name = LabelPresets.GetDefault((vehicle.Route.Loading ? "<!cicon_ship_b>" : vehicle.Route.GetProgressIcon()) + " " + vehicle.GetName(), __instance.Scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         _content.Transfer(_name);
 
         // Balance
-        Label _balance = LabelPresets.GetDefault("5", __instance.Scene.Engine);
+        Label _balance = LabelPresets.GetDefault("", __instance.Scene.Engine);
         _balance.horizontal_alignment = HorizontalAlignment.Right;
         _balance.Margin_local = new FloatSpace(MainData.Margin_content);
         _balance.Opacity = 0.5f;
         _content.Transfer(_balance);
-        _balance.OnUpdate += (Action)delegate
+        UpdateBalance();
+        _balance.OnUpdate += () => UpdateBalance();
+        void UpdateBalance()
         {
             long quarterAverage = vehicle.Balance.GetQuarterAverage();
-            if (quarterAverage < 0)
-            {
-                _balance.Color = LabelPresets.Color_negative;
-            }
-            else
-            {
-                _balance.Color = LabelPresets.Color_positive;
-            }
+            _balance.Color = quarterAverage < 0 ? LabelPresets.Color_negative : LabelPresets.Color_positive;
             _balance.Text = StrConversions.GetBalance(quarterAverage, __instance.Scene.currency);
         };
 
