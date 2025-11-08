@@ -1,0 +1,212 @@
+﻿using HarmonyLib;
+using STM.Data;
+using STM.GameWorld;
+using STM.UI;
+using STM.UI.Explorer;
+using STMG.Engine;
+using STMG.UI.Control;
+using STMG.Utility;
+using STVisual.Utility;
+using Utilities;
+
+namespace UITweaks.UIExplorer;
+
+
+[HarmonyPatch(typeof(ExplorerCompany))]
+public static class ExplorerCompany_Patches
+{
+    [HarmonyPatch(typeof(InfoUI), "GetCompaniesCategories"), HarmonyPrefix]
+    public static bool InfoUI_GetCompaniesCategories_Prefix(ref string[] __result)
+    {
+        __result =
+        [
+            Localization.GetGeneral("name"), // 0
+            "Value", //Localization.GetCompany("company_value"), // 1
+            "Profit", //Localization.GetCompany("operating_profit"), // 2
+            Localization.GetCity("level"), // 3 Level
+            "Shares", //Localization.GetCompany("company_shares"), // 4
+            Localization.GetCompany("hubs"), // 5
+            Localization.GetInfrastructure("vehicles"), // 6
+        ];
+        return false;
+    }
+
+
+    [HarmonyPatch("GetMainControl"), HarmonyPrefix]
+    public static bool ExplorerCompany_GetMainControl_Prefix(ExplorerCompany __instance, GameScene scene)
+    {
+        Label[] Labels = new Label[7];
+        __instance.SetPublicProperty("Labels", Labels);
+
+        // Main button
+        Button main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, 32, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
+        __instance.SetPrivateField("main_button", main_button);
+        main_button.Opacity = 0f;
+        main_button.horizontal_alignment = HorizontalAlignment.Stretch;
+        main_button.OnMouseStillTime += (Action)delegate
+        {
+            __instance.CallPrivateMethodVoid("GetTooltip", [scene]);
+        };
+
+        Image alt = new Image(ContentRectangle.Stretched, MainData.Panel_empty);
+        __instance.SetPrivateField("alt", alt);
+        alt.Opacity = 0f;
+        _collection.Transfer(alt);
+
+        // Grid
+        Grid main_grid = new Grid(ContentRectangle.Stretched, Labels.Length, 1, SizeType.Weight);
+        __instance.SetPrivateField("main_grid", main_grid);
+        main_grid.OnFirstUpdate += (Action)delegate
+        {
+            main_grid.update_children = false;
+        };
+        _collection.Transfer(main_grid);
+
+        // Logo
+        Image _back = new Image(MainData.Logos_back[__instance.Company.Info.Logo]);
+        _back.vertical_alignment = VerticalAlignment.Center;
+        _back.Color = __instance.Company.Color_secondary;
+        _back.Zoom_local = 0.2f;
+        main_grid.Transfer(_back, 0, 0);
+        Image _front = new Image(MainData.Logos_front[__instance.Company.Info.Logo]);
+        _front.vertical_alignment = VerticalAlignment.Center;
+        _front.Color = __instance.Company.Color_main;
+        _front.Zoom_local = 0.2f;
+        main_grid.Transfer(_front, 0, 0);
+
+        // 0 Name
+        string _nameTxt = __instance.Company.Info.Name;
+        if (__instance.Company.Info is CompanyGenerated _info)
+            _nameTxt += $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({_info.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
+        Label _name = LabelPresets.GetDefault(_nameTxt, scene.Engine);
+        _name.Margin_local = new FloatSpace(MainData.Margin_content * 3);
+        main_grid.Transfer(_name, 0, 0);
+        Labels[0] = _name;
+        if (__instance.Company.Bankrupt)
+            _name.Color = LabelPresets.Color_negative;
+        else if (__instance.Company.ID == scene.Session.Player)
+            _name.Color = LabelPresets.Color_positive;
+
+        // 1 Value
+        Label _value = LabelPresets.GetDefault("999", scene.Engine);
+        _value.Margin_local = new FloatSpace(MainData.Margin_content);
+        _value.horizontal_alignment = HorizontalAlignment.Right;
+        main_grid.Transfer(_value, 1, 0);
+        Labels[1] = _value;
+
+        // 2 Profit
+        Label _balance = LabelPresets.GetDefault("999", scene.Engine);
+        _balance.Margin_local = new FloatSpace(MainData.Margin_content);
+        _balance.horizontal_alignment = HorizontalAlignment.Right;
+        main_grid.Transfer(_balance, 2, 0);
+        Labels[2] = _balance;
+
+        // 3 Level
+        Label _level = LabelPresets.GetDefault("<!cicon_star> " + STM.GameWorld.Tasks.CompanyTask.GetLevel(__instance.Company, true).ToString(), scene.Engine);
+        _level.Margin_local = new FloatSpace(MainData.Margin_content);
+        _level.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_level, 3, 0);
+        Labels[3] = _level;
+
+        // 4 Shares
+        float _owned = __instance.Company.Shares.GetOwnedBy(scene.Session.GetPlayer());
+        Label _shares = LabelPresets.GetDefault(_owned > 0 ? StrConversions.Percent(_owned) : "", scene.Engine);
+        if (_owned > 0.5f)
+            _shares.Color = LabelPresets.Color_positive;
+        _shares.Margin_local = new FloatSpace(MainData.Margin_content);
+        _shares.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_shares, 4, 0);
+        Labels[4] = _shares;
+
+        // 5 Hubs
+        Label _hubs = LabelPresets.GetDefault(__instance.Company.Hubs.ToString(), scene.Engine);
+        _hubs.Margin_local = new FloatSpace(MainData.Margin_content);
+        _hubs.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_hubs, 5, 0);
+        Labels[5] = _hubs;
+
+        // 6 Vehicles
+        Label _vehicles = LabelPresets.GetDefault(__instance.Company.GetVehiclesWithIcons(), scene.Engine);
+        _vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
+        _vehicles.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_vehicles, 6, 0);
+        Labels[6] = _vehicles;
+
+        return false;
+    }
+
+
+    internal static string GetVehiclesWithIcons(this Company company)
+    {
+        CompanyGenerated.CompanyType _type = CompanyGenerated.CompanyType.All;
+        if (company.Info is CompanyGenerated _info)
+            _type = _info.Company_type;
+        string _res = company.Vehicles.ToString() + "  |";
+        if ((_type & CompanyGenerated.CompanyType.Road_vehicles) != 0) _res += $" <!cicon_road_vehicle>{company.Road_vehicles}";
+        if ((_type & CompanyGenerated.CompanyType.Trains) != 0) _res += $" <!cicon_train>{company.Trains}";
+        if ((_type & CompanyGenerated.CompanyType.Planes) != 0) _res += $" <!cicon_plane>{company.Planes}";
+        if ((_type & CompanyGenerated.CompanyType.Ships) != 0) _res += $" <!cicon_ship>{company.Ships}";
+        return _res;
+    }
+
+
+    [HarmonyPatch("Update"), HarmonyPostfix]
+    public static void ExplorerCompany_Update_Postfix(ExplorerCompany __instance, GameScene scene, Company company)
+    {
+        __instance.Labels[5].Text = __instance.Company.Hubs.ToString();
+        __instance.Labels[6].Text = __instance.Company.GetVehiclesWithIcons();
+    }
+
+
+    [HarmonyPatch("Smaller"), HarmonyPostfix]
+    public static void ExplorerCompany_Smaller_Postfix(ExplorerCompany __instance, ref bool __result, IExplorerItem item, int sort_id)
+    {
+        ExplorerCompany _item = (ExplorerCompany)item;
+        if (__instance.Valid != _item.Valid) return;
+        if (__instance.Company.Bankrupt || _item.Company.Bankrupt) return;
+        if (sort_id % __instance.Labels.Length < 3) return; // this case was completed in the original
+
+        GameScene scene = (GameScene)GameEngine.Last.Main_scene;
+        int result = 0;
+
+        // 3 Level
+        if (sort_id % __instance.Labels.Length == 3)
+        {
+            Company player = scene.Session.GetPlayer();
+            result = STM.GameWorld.Tasks.CompanyTask.GetLevel(__instance.Company, true).CompareTo(STM.GameWorld.Tasks.CompanyTask.GetLevel(_item.Company, true));
+            if (result == 0)
+                result = __instance.Company.GetValue(scene).CompareTo(_item.Company.GetValue(scene));
+        }
+
+        // 4 Shares
+        if (sort_id % __instance.Labels.Length == 4)
+        {
+            Company player = scene.Session.GetPlayer();
+            result = __instance.Company.Shares.GetOwnedBy(player).CompareTo(_item.Company.Shares.GetOwnedBy(player));
+            if (result == 0)
+                result = __instance.Company.GetValue(scene).CompareTo(_item.Company.GetValue(scene));
+        }
+
+        // 5 Hubs
+        if (sort_id % __instance.Labels.Length == 5)
+        {
+            result = __instance.Company.Hubs.CompareTo(_item.Company.Hubs);
+            if (result == 0)
+                result = __instance.Company.Vehicles.CompareTo(_item.Company.Vehicles);
+        }
+
+        // 6 Vehicles
+        if (sort_id % __instance.Labels.Length == 6)
+        {
+            result = __instance.Company.Vehicles.CompareTo(_item.Company.Vehicles);
+            if (result == 0)
+                result = __instance.Company.Hubs.CompareTo(_item.Company.Hubs);
+        }
+
+        // Fail-safe
+        if (result == 0)
+            result = __instance.Company.Info.Name.CompareTo(_item.Company.Info.Name);
+
+        __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
+    }
+}
