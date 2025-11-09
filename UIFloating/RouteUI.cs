@@ -562,23 +562,21 @@ public static class RouteUI_Patches
         }
         long _price = entity.GetPrice(scene, _company, scene.Cities[vehicle.Hub.City].User); // buy new
         _price -= (long)((decimal)vehicle.GetValue() * scene.Session.GetPriceAdjust()); // sell old
-        if (vehicle.Hub.Full())
-        {
-            _price += vehicle.Hub.GetNextLevelPrice(scene.Session);
-        }
+        //if (vehicle.Hub.Full())
+        //{
+            //_price += vehicle.Hub.GetNextLevelPrice(scene.Session);
+        //}
         if (!_company.Cheats && _company.Wealth < _price)
         {
-            ConfirmUI.Get(Localization.GetInfrastructure("no_money"), null, null, delegate
-            {
-            }, scene.Engine, null, null, _price);
+            ConfirmUI.Get(Localization.GetInfrastructure("no_money"), null, null, delegate {}, scene.Engine, null, null, _price);
             MainData.Sound_error.Play();
             return;
         }
         // schedule commands
-        if (vehicle.Hub.Full())
-        {
-            scene.Session.Commands.Add(new CommandUpgradeHub(_company.ID, vehicle.Hub.City));
-        }
+        //if (vehicle.Hub.Full())
+        //{
+            //scene.Session.Commands.Add(new CommandUpgradeHub(_company.ID, vehicle.Hub.City));
+        //}
         scene.Session.Commands.Add(new CommandSell(vehicle));
         NewRouteSettings _settings = new NewRouteSettings(vehicle);
         _settings.upgrade = new UpgradeSettings(vehicle, scene);
