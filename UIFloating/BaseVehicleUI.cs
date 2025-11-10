@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using STM.Data;
+using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Commands;
 using STM.GameWorld.Users;
@@ -7,7 +8,9 @@ using STM.UI;
 using STM.UI.Explorer;
 using STM.UI.Floating;
 using STMG.UI.Control;
+using STMG.Utility;
 using STVisual.Utility;
+using System.Reflection;
 using Utilities;
 
 namespace UITweaks.UIFloating;
@@ -282,5 +285,102 @@ public static class BaseVehicleUI_Patches
         }
         _tooltip.AddToControlAuto(item.control);
         return false;
+    }
+
+
+    internal static (decimal, int, int) GetPassengerData(this VehiclePassengers passengers, CityUser from, CityUser to)
+    {
+        int _all = 0;
+        decimal _sum = 0m;
+        int _back = 0;
+        for (int i = 0; i < passengers.Items.Count; i++)
+            if (passengers.Items[i].Start.User == from && passengers.Items[i].Destination.User == to)
+            {
+                int people = passengers.Items[i].People;
+                _all += people;
+                _sum += passengers.Items[i].demand_price * (decimal)people;
+                if (passengers.Items[i].going_back)
+                    _back += people;
+            }
+        return (_all > 0 ? _sum / (decimal)_all : 0m, _all, _back);
+    }
+
+    internal static (decimal, decimal) GetDemandData(this VehiclePassengers passengers)
+    {
+        int _all = 0;
+        decimal _sum = 0m;
+        for (int i = 0; i < passengers.Items.Count; i++)
+        {
+            int people = passengers.Items[i].People;
+            _all += people;
+            _sum += passengers.Items[i].demand_price * (decimal)people;
+        }
+        return (_all > 0 ? _sum / (decimal)_all : 0m, _sum);
+    }
+
+    internal static readonly string Color_positive = $"<!#{LabelPresets.Color_positive.GetHex()}>";
+    internal static readonly string Color_negative = $"<!#{LabelPresets.Color_negative.GetHex()}>";
+    internal static readonly string Color_main = $"<!#{LabelPresets.Color_main.GetHex()}>";
+
+    // PassengersItems is a private nested type, so it is very cumbersome to work with atm
+    [HarmonyPatch("GetPassengersItem"), HarmonyPostfix]
+    public static void GetPassengersItem(BaseVehicleUI __instance, object __result, object items, CityUser from, CityUser to)
+    {
+        // Process private class
+        PropertyInfo prop = __result.GetType().GetProperty("Control", BindingFlags.Instance | BindingFlags.Public)!;
+        Grid _grid = (Grid)prop.GetValue(__result)!;
+        prop = __result.GetType().GetProperty("From", BindingFlags.Instance | BindingFlags.Public)!;
+        CityUser _from = (CityUser)prop.GetValue(__result)!;
+        prop = __result.GetType().GetProperty("To", BindingFlags.Instance | BindingFlags.Public)!;
+        CityUser _to = (CityUser)prop.GetValue(__result)!;
+        FieldInfo field = __result.GetType().GetField("count", BindingFlags.Instance | BindingFlags.Public)!;
+
+        // Labels
+        var _data = __instance.Vehicle.Passengers.GetPassengerData(_from, _to);
+        string _fromTxt = from.GetNameWithIcon(__instance.Scene);
+        if (_data.Item1 > 1.1m) _fromTxt += Color_positive;
+        else if (_data.Item1 < 0.9m) _fromTxt += Color_negative;
+        _fromTxt += $"   {_data.Item1:F2}";
+        ((Label)_grid[3]).Text = _fromTxt;
+        string _toTxt = to.GetNameWithIcon(__instance.Scene);
+        if (_data.Item2 - _data.Item3 > 0) _toTxt += $"   <!cicon_passenger> {_data.Item2 - _data.Item3}";
+        if (_data.Item3 > 0) _toTxt += $"   <!cicon_fastest> {_data.Item3}";
+        ((Label)_grid[4]).Text = _toTxt;
+    }
+
+    [HarmonyPatch("GetCargo"), HarmonyPostfix]
+    public static void BaseVehicleUI_GetCargo_Postfix(BaseVehicleUI __instance)
+    {
+        if (!__instance.TryGetControl("cargo", out IControl? control) || control == null)
+        {
+            Log.Write("Error. Failed to get the control grid.");
+            return;
+        }
+        Grid _grid = (Grid)control;
+        Label _passengers1 = (Label)_grid[2];
+        Panel _fill = (Panel)_grid[4];
+        ControlContainer _fill_container = (ControlContainer)_fill.Content;
+        ControlCollection _fill_collection = (ControlCollection)_fill_container.Content;
+        Label _passengers2 = (Label)_fill_collection[0];
+        int maxCapacity = __instance.Vehicle.Entity_base is TrainEntity train ? train.Max_capacity : __instance.Vehicle.Entity_base.Capacity;
+        decimal minCapacity = (decimal)__instance.Vehicle.Entity_base.Real_min_passengers;
+        UpdatePassengers();
+        _grid.OnUpdate += (Action)delegate
+        {
+            if (__instance.Vehicle.Route.Loading)
+                UpdatePassengers();
+        };
+        // Helper
+        void UpdatePassengers()
+        {
+            var data = __instance.Vehicle.Passengers.GetDemandData();
+            string text = Localization.GetGeneral("passengers") + "   ";
+            if (data.Item1 > 1.1m) text += Color_positive;
+            else if (data.Item1 < 0.9m) text += Color_negative;
+            else text += Color_main;
+            text += $"{data.Item1:F2}   " + (data.Item2 < minCapacity ? Color_negative : Color_main ) + $"   {100f * (float)data.Item2 / (float)maxCapacity:F0}%";
+            _passengers1.Text = text;
+            _passengers2.Text = text;
+        }
     }
 }
