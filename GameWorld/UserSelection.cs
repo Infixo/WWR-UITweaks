@@ -8,10 +8,9 @@ using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
-using System.Reflection.PortableExecutable;
+using UITweaks.UI;
 using UITweaks.UIFloating;
 using Utilities;
-using static System.Formats.Asn1.AsnWriter;
 
 namespace UITweaks.GameWorld;
 
@@ -144,7 +143,13 @@ internal static class UserSelection_Patches
         _button.Margin_local = new FloatSpace((float)(5 * OneButtonSize), 0f, (float)(5 * OneButtonSize + LastButtonSize), 0f);
         _collection.Transfer(_wealth_grid);
         _c.Transfer(_button);
-        _button.OnButtonPress += () => __instance.CallPrivateMethodVoid("OpenWealth", []);
+        _button.OnButtonPress += (Action)delegate
+        {
+            if (___Session.Scene.Engine.Keys.Ctrl || ___Session.Scene.Engine.Keys.Shift)
+                InfoUI_Patches.NoCapex = !InfoUI_Patches.NoCapex;
+            else
+                __instance.CallPrivateMethodVoid("OpenWealth", []);
+        };
         _button.OnMouseStillTime += () => __instance.CallPrivateMethodVoid("GetWealthTooltip", [_button]);
 
         // Buttons

@@ -37,7 +37,7 @@ public static class CreateNewRouteAction_Patches
                     "<!cicon_storage>", // Localization.GetGeneral("inventory"), //6
                     Localization.GetGeneral("price"), //7
                     "Profit", // 8 Localization.GetVehicle("estimated_profit")
-                    "<!cicon_passenger><!cicon_passenger>", // 9 throughput
+                    "<!cicon_passenger><!cicon_fast>", // 9 throughput
                     Localization.GetGeneral("range"), // 10
                 },
                 on_select,
