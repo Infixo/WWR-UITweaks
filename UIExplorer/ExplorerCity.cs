@@ -53,7 +53,7 @@ public static class ExplorerCity_Patches
             "<!cicon_passenger><!cicon_passenger><!cicon_passenger>", // 4 Biggest crowd
             Localization.GetCity("fulfillment"), // 5
             "Trust", //6 Localization.GetCity("company_trust"),
-            "<!cicon_city>", // 7 Buildings Localization.GetInfrastructure("infrastructure"),
+            "<!cicon_storage>", // 7 Buildings Localization.GetInfrastructure("infrastructure"),
         ];
         return false; // skip original
     }
@@ -78,16 +78,18 @@ public static class ExplorerCity_Patches
             //case 3:
                 //_tooltip = TooltipPreset.Get(Localization.GetGeneral("capacity"), ___Session.Scene.Engine);
                 //break;
-            //case 4:
-                //_tooltip = TooltipPreset.Get("Biggest crowd", ___Session.Scene.Engine);
-                //_tooltip.AddDescription("Number of cities.");
-                //break;
+            case 4:
+                _tooltip = TooltipPreset.Get("Biggest crowd", ___Session.Scene.Engine);
+                _tooltip.AddDescription("Passengers going for a single destination.");
+                break;
             case 5:
                 _tooltip = TooltipPreset.Get(Localization.GetCity("fulfillment"), ___Session.Scene.Engine);
                 _tooltip.AddDescription("Number of destinations that are not fulfilled thus preventing the city growth.");
                 break;
             //case 6: // trust
-            //case 7:
+            case 7:
+                _tooltip = TooltipPreset.Get(Localization.GetInfrastructure("infrastructure"), ___Session.Scene.Engine);
+                break;
         }
         _tooltip?.AddToControlBellow(parent);
         return false;

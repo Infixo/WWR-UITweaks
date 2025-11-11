@@ -24,30 +24,30 @@ public static class ExplorerVehicleUser_Patches
             Localization.GetGeneral("name"),
             Localization.GetCompany("company"),
             Localization.GetVehicle("route"),
-            Localization.GetGeneral("capacity"),
-            Localization.GetGeneral("efficiency"),
+            "<!cicon_passenger>", //Localization.GetGeneral("capacity"),
+            "%", // $"{'\uFF05'}", //Localization.GetGeneral("efficiency"),
             Localization.GetGeneral("balance"),
             // added
-            "<!cicon_passenger> <!cicon_passenger>", // quarter efficiency
-            "<!cicon_fast> <!cicon_fast>", // quarter throughput
+            "% %", // quarter efficiency
+            "<!cicon_passenger> <!cicon_passenger>", // quarter throughput
         ];
         return false;
     }
 
 
     [HarmonyPatch(typeof(InfoUI), "GetTooltip"), HarmonyPostfix]
-    public static void RouteUI_GetTooltip_Postfix(IControl parent, int category, Session ___Session)
+    public static void InfoUI_GetTooltip_Postfix(IControl parent, int category, Session ___Session)
     {
         TooltipPreset? _tooltip = null;
         switch (category)
         {
             case 6:
-                _tooltip = TooltipPreset.Get("Quarter Efficiency", ___Session.Scene.Engine);
-                _tooltip.AddDescription("Average efficiency in the last quarter.");
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("efficiency"), ___Session.Scene.Engine);
+                _tooltip.AddDescription(Localization.GetInfo("balance_quarter"));
                 break;
             case 7:
-                _tooltip = TooltipPreset.Get("Quarter Throughput", ___Session.Scene.Engine);
-                _tooltip.AddDescription("Average throughput in the last quarter");
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("passengers"), ___Session.Scene.Engine);
+                _tooltip.AddDescription(Localization.GetInfo("balance_quarter"));
                 break;
         }
         _tooltip?.AddToControlBellow(parent);

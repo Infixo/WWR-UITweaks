@@ -23,7 +23,7 @@ public static class ExplorerLine_Patches
     public class ExtraData
     {
         public double Distance;
-        public int Age;
+        public long Throughput;
         public string Country = "";
     }
     private static readonly ConditionalWeakTable<ExplorerLine, ExtraData> _extras = [];
@@ -38,12 +38,12 @@ public static class ExplorerLine_Patches
         Localization.GetGeneral("name"), // 0
         Localization.GetVehicle("route"), // 1
         Localization.GetInfrastructure("vehicles"), // 2 <!cicon_road_vehicle><!cicon_train><!cicon_plane><!cicon_ship>"
-        Localization.GetGeneral("efficiency"), // 3 current month
+        "%", //Localization.GetGeneral("efficiency"), // 3 current month
         Localization.GetGeneral("balance"), // 4
         // added
         "<!cicon_city>", // 5 num cities
         "<!cicon_left>  <!cicon_right>", // 6 length
-        "<!cicon_fast>", // 7 age
+        "<!cicon_passenger> <!cicon_passenger>", // 7 throughput
         "<!cicon_ship_b>" // 8 evaluation "<!cicon_passenger>", // 8
         ];
         return false;
@@ -141,9 +141,8 @@ public static class ExplorerLine_Patches
                 _tooltip.AddDescription("Total distance.");
                 break;
             case 7: // Age
-                _tooltip = TooltipPreset.Get("Line age", ___Session.Scene.Engine);
-                //_tooltip.AddDescription("Estimated throughput based on vehicles' speeds and capacities. How many passengers can be transported during a month assuming full capacity usage.");
-                _tooltip.AddDescription("Age of the oldest vehicle (in months).");
+                _tooltip = TooltipPreset.Get(Localization.GetGeneral("passengers"), ___Session.Scene.Engine);
+                _tooltip.AddDescription(Localization.GetInfo("balance_quarter"));
                 break;
             case 8: // Waiting
                 _tooltip = TooltipPreset.Get("Line evaluation", ___Session.Scene.Engine);
@@ -276,9 +275,9 @@ public static class ExplorerLine_Patches
         __instance.Extra().Distance = __instance.Line.GetTotalDistance();
         InsertLabelAt(6, StrConversions.GetDistance(__instance.Extra().Distance));
 
-        // 7 Age of the line
-        __instance.Extra().Age = __instance.Line.GetAge(); // GetQuarterAverageThroughput(); // EstimateThroughput();
-        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Age));
+        // 7 Throughput
+        __instance.Extra().Throughput = __instance.Line.GetQuarterAverageThroughput();
+        InsertLabelAt(7, StrConversions.CleanNumber(__instance.Extra().Throughput));
 
         // 8 Evaluation
 #if GETWAITING
@@ -441,8 +440,8 @@ public static class ExplorerLine_Patches
                 result = __instance.Extra().Distance.CompareTo(_item.Extra().Distance);
                 break;
 
-            case 7: // age
-                result = __instance.Extra().Age.CompareTo(_item.Extra().Age);
+            case 7: // throughput
+                result = __instance.Extra().Throughput.CompareTo(_item.Extra().Throughput);
                 break;
 
             case 8: // evaluated
@@ -460,6 +459,7 @@ public static class ExplorerLine_Patches
 
         return false;
     }
+
 
     [HarmonyPatch("Matches"), HarmonyPrefix]
     public static bool ExplorerLine_Matches_Prefix(ExplorerLine __instance, ref bool __result, FilterCategory[] categories, GameScene scene, Company company, CityUser city)
