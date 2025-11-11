@@ -12,10 +12,12 @@
 - (0.9) Explorers (all).
   - Selecting an item in an explorer with ctrl or shift does not close it.
   - Explorer search field is longer and allows multi-search (use | to separate keywords).
+  - (0.10) Supports AND conditions with & sign.
 - InfoUI
   - (0.4) Improved vehicles tooltips.
-  - (0.6) Button to close all floating windows at once.
+  - (0.6) Button to close all floating windows at once (0.10) and specific types.
 - (0.8) Vehicle tooltip has info about its hub and location on the route.
+- (0.10) CitiesGrown closes with ctrl+click and displays info about new destinations.
 
 ### Explorers (new columns)
 - Countries. Average city level, how many cities are not connected to any lines.
@@ -24,7 +26,7 @@
   - (0.2) Filters and counters for city features and buildings.
   - (0.3) Number of unfulfilled destinations.
 - Lines.
-  - Num of cities, total length, (0.6) line age, (0.4) evaluation flag.
+  - Num of cities, total length, (0.10) quarter throughput, (0.4) evaluation flag.
   - (0.2) Search by Country.
   - (0.3) Mark lines that have >1 hub.
   - (0.5) New filters: empty, national, international, evaluated.
@@ -33,6 +35,7 @@
 - Hubs. 
   - (0.3) Shows budget and brands info.
   - (0.4) Info about generated plans.
+- (0.10) Companies. Level, shares owned, hubs and vehicles.
 
 ### Floating windows
 - RouteUI.
@@ -57,6 +60,7 @@
   - (0.4) VehicleUI shows line number.
   - (0.8) Ability to move a single vehicle to a different hub.
   - (0.9) Ctrl-click to edit isolated vehicle route. Click edits the line for all vehicles.
+  - (0.10) Demand price for each passenger group and total weighted.
 - (0.7) NEW Route Planner.
   - Groups into clusters cities that have interest in a group of origin cities.
   - Displays connections within a cluster and between the cluster and origin cities.
@@ -77,6 +81,15 @@
 - None atm.
 
 ### Changelog
+- v0.10.0 (2025-11-11)
+  - ExplorerCompany enhancements (level, hubs, vehicles).
+  - VehicleUI shows demand price for each passenger group and total weighted.
+  - InfoUI has buttons to close verious types of floaters.
+  - Explorer search allows for AND condition with & sign.
+  - CitiesGrown closes with ctrl+click and displays info about new destinations.
+  - Line explorer shows quarter throughput (instead of line age).
+  - VehicleUi performance section visual improvements.
+  - Fixed change route and one-click upgrade trying to upgrade the unchanged vehicle's hub.
 - v0.9.0 (2025-11-05)
   - Selecting an item in an explorer with ctrl or shift does not close it.
   - Explorer search field is longer and allows multi-search (use | to separate keywords).
