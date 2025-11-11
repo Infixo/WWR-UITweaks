@@ -43,7 +43,7 @@ public static class ExplorerLine_Patches
         // added
         "<!cicon_city>", // 5 num cities
         "<!cicon_left>  <!cicon_right>", // 6 length
-        "<!cicon_passenger> <!cicon_passenger>", // 7 throughput
+        "<!cicon_passenger><!cicon_fast>", // 7 throughput
         "<!cicon_ship_b>" // 8 evaluation "<!cicon_passenger>", // 8
         ];
         return false;

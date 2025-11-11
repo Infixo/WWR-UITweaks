@@ -29,7 +29,7 @@ public static class ExplorerVehicleUser_Patches
             Localization.GetGeneral("balance"),
             // added
             "% %", // quarter efficiency
-            "<!cicon_passenger> <!cicon_passenger>", // quarter throughput
+            "<!cicon_passenger><!cicon_fast>", // quarter throughput
         ];
         return false;
     }

@@ -383,35 +383,23 @@ public static class RouteUI_Patches
     [HarmonyPatch("GetPerformance"), HarmonyPrefix]
     public static bool RouteUI_GetPerformance_Prefix(RouteUI __instance, ref Label ___label_balance, ref Label ___label_efficiency)
     {
-        // Grid 1x11
-        // 0: eff + bal
-        // 1: space
-        // 2: thr + veh
-        // 3: space
-        // 4: wait + dist
+        // Grid 6x6
+        // 0: bal + eff + thr(pax) | space + 4xlabel + space
+        // 1: dist + veh + wait
+        // 2,3,4: graph (3 rows)
         // 5: space
-        // 6-9: graph (4 rows)
-        // 10: space
-        int _height = MainData.Size_button * 7 + MainData.Margin_content_items * 4;
-        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, _height, 1f), 1, 11, SizeType.Weight);
-        _grid.Margin_local = new FloatSpace(MainData.Margin_content, MainData.Margin_content_items);
+        int _height = MainData.Size_button * 6 + MainData.Margin_content_items;
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, _height, 1f), 6, 6, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
         __instance.CallPrivateMethodVoid("AddControl", [_grid, "perf"]);
-        _grid.SetRow( 1, SizeType.Pixels, MainData.Margin_content_items);
-        _grid.SetRow( 3, SizeType.Pixels, MainData.Margin_content_items);
-        _grid.SetRow( 5, SizeType.Pixels, MainData.Margin_content_items);
-        _grid.SetRow(10, SizeType.Pixels, MainData.Margin_content_items);
-
-        // Panel        
-        Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_company_back_bottom);
-        _panel.Margin_local = new FloatSpace(-MainData.Margin_content + MainData.Margin_content_items + 2, 0f);
-        _panel.Color = __instance.Company.Color_secondary;
-        _panel.use_multi_texture = true;
-        _grid.Transfer(_panel, 0, 4, _grid.Columns_count, _grid.Rows_count - 4);
+        _grid.SetColumn( 0, SizeType.Pixels, MainData.Margin_content);
+        _grid.SetColumn( 5, SizeType.Pixels, MainData.Margin_content);
+        _grid.SetRow(5, SizeType.Pixels, MainData.Margin_content_items);
 
         // Performance tooltip
         ControlContainer _container_performance = new ControlContainer(ContentRectangle.Stretched);
         _container_performance.mouse_pass = false;
-        _grid.Transfer(_container_performance, 0, 0);
+        _grid.Transfer(_container_performance, 0, 0, column_span:6);
         _container_performance.OnMouseStillTime += () => __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
 
         // Evaluation tooltip
@@ -419,44 +407,52 @@ public static class RouteUI_Patches
         {
             ControlContainer _container_evaluation = new ControlContainer(ContentRectangle.Stretched);
             _container_evaluation.mouse_pass = false;
-            _grid.Transfer(_container_evaluation, 0, 2, row_span: 3);
+            _grid.Transfer(_container_evaluation, 0, 1, column_span: 6);
             _container_evaluation.OnMouseStillTime += () => AITweaksLink.GetEvaluationTooltip(__instance.Line, __instance.Scene.Engine).AddToControlAuto(_container_evaluation);
         }
 
+        // Row0
+        Label _perf = LabelPresets.GetDefault(Localization.GetVehicle("performance"), __instance.Scene.Engine);
+        _perf.horizontal_alignment = HorizontalAlignment.Left;
+        _grid.Transfer(_perf, 1, 0);
+
         // Row0 Balance
         ___label_balance = LabelPresets.GetBold("", __instance.Scene.Engine);
-        ___label_balance.horizontal_alignment = HorizontalAlignment.Right;
-        ___label_balance.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(___label_balance, 0, 0);
+        ___label_balance.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(___label_balance, 2, 0);
 
         // Row0 Efficiency
         ___label_efficiency = LabelPresets.GetBold("", __instance.Scene.Engine);
-        ___label_efficiency.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(___label_efficiency, 0, 0);
+        ___label_efficiency.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(___label_efficiency, 3, 0);
 
-        // Row1 Throughtput
-        Label throughput = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>", __instance.Scene.Engine);
-        throughput.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(throughput, 0, 2);
+        // Row0 Throughput
+        Label throughput = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_passenger><!cicon_fast>", __instance.Scene.Engine);
+        throughput.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(throughput, 4, 0);
         __instance.Extra().Label_Throughput = throughput;
 
+        // Row1
+        string cyclic = __instance.Line.Instructions.Cyclic ? " <!cicon_right><!cicon_right>" : " <!cicon_right><!cicon_left>";
+        Label _route = LabelPresets.GetDefault(Localization.GetVehicle("route") + cyclic, __instance.Scene.Engine);
+        _route.horizontal_alignment = HorizontalAlignment.Left;
+        _grid.Transfer(_route, 1, 1);
+
+        // Row1 Distance
+        Label _distance = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Line.GetTotalDistance()), __instance.Scene.Engine);
+        _distance.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_distance, 2, 1);
+
         // Row1 Vehicles
-        __instance.Extra().Label_Vehicles = LabelPresets.GetBold("", __instance.Scene.Engine);
-        __instance.Extra().Label_Vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
-        __instance.Extra().Label_Vehicles.horizontal_alignment = HorizontalAlignment.Right;
-        _grid.Transfer(__instance.Extra().Label_Vehicles, 0, 2);
+        Label _vehicles = LabelPresets.GetBold("", __instance.Scene.Engine);
+        _vehicles.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_vehicles, 3, 1);
+        __instance.Extra().Label_Vehicles = _vehicles;
 
-        // Row2 Waiting
-        Label waiting = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetWaiting())+" <!cicon_passenger>", __instance.Scene.Engine);
-        waiting.Margin_local = new FloatSpace(MainData.Margin_content);
-        _grid.Transfer(waiting, 0, 4);
-
-        // Row2 Distance
-        string cyclic = Localization.GetInfrastructure(__instance.Line.Instructions.Cyclic ? "route_cyclic_yes" : "route_cyclic_no");
-        Label distance = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Line.GetTotalDistance()) + $" ({cyclic})", __instance.Scene.Engine);
-        distance.Margin_local = new FloatSpace(MainData.Margin_content);
-        distance.horizontal_alignment = HorizontalAlignment.Right;
-        _grid.Transfer(distance, 0, 4);
+        // Row1 Waiting
+        Label waiting = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Line.GetWaiting())+ " <!cicon_passenger><!cicon_passenger>", __instance.Scene.Engine);
+        waiting.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(waiting, 4, 1);
 
         // Balance graph
         IControl _graph = ChartLine.GetSingle(new GraphSettings(step => __instance.CallPrivateMethod<long>("GetValue", [step]), 12, -1L, -1L, 2L)
@@ -464,8 +460,7 @@ public static class RouteUI_Patches
             // lamba magic here!
             update_tooltip = (tooltip, settings, id) => __instance.CallPrivateMethodVoid("UpdateGraphTooltip", [tooltip, settings, id])
         }, fill: true, __instance.Company.GetGridColor());
-        _grid.Transfer(_graph, 0, 6, 1, 4);
-        _graph.Margin_local = new FloatSpace(MainData.Margin_content);
+        _grid.Transfer(_graph, 1, 2, 4, 3);
 
         return false;
     }
@@ -480,7 +475,7 @@ public static class RouteUI_Patches
         // company info updated
         // Balance, efficieny and vehicles updated
         // Throughput
-        __instance.Extra().Label_Throughput.Text = StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_fast>";
+        __instance.Extra().Label_Throughput.Text = StrConversions.CleanNumber(__instance.Line.GetQuarterAverageThroughput()) + " <!cicon_passenger><!cicon_fast>";
         // Num of vehicles
         string typeIcon = "?";
         switch (__instance.Line.Vehicle_type)
