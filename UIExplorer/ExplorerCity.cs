@@ -1,7 +1,5 @@
 ﻿using HarmonyLib;
-using Microsoft.Xna.Framework;
 using STM.Data;
-using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.Users;
 using STM.UI;
@@ -118,7 +116,9 @@ public static class ExplorerCity_Patches
                 new FilterCategoryItem("Important"),
                 new FilterCategoryItem("Port"),
                 new FilterCategoryItem("Resort"),
-                new FilterCategoryItem("Overcrowded")),
+                new FilterCategoryItem("Overcrowded"),
+                new FilterCategoryItem("Dominated"),
+                new FilterCategoryItem("...Countries")),
             // buildings
             new FilterCategory(
                 Localization.GetInfrastructure("infrastructure"), "list", buildings),
@@ -372,8 +372,12 @@ public static class ExplorerCity_Patches
                 result0 &= __instance.City.Sea != null;
             if (categories[0].Items[5].Selected)
                 result0 &= __instance.City.City.Resort;
-            if (categories[0].Items[6].Selected)
+            if (categories[0].Items[6].Selected) // Overcrowded
                 result0 &= (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100;
+            if (categories[0].Items[7].Selected) // Dominated
+                result0 &= __instance.City.Trust.Dominated == player;
+            if (categories[0].Items[8].Selected) // Dominated countries
+                result0 &= scene.Countries[__instance.City.City.Country_id].Dominated == player;
             if (categories[0].Items[0].Selected)
                 result0 = !result0;
         }
@@ -424,6 +428,8 @@ public static class ExplorerCity_Patches
         IncreaseCount(0, 4, __instance.City.Sea != null);
         IncreaseCount(0, 5, __instance.City.City.Resort);
         IncreaseCount(0, 6, (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100);
+        IncreaseCount(0, 7, __instance.City.Trust.Dominated == player);
+        IncreaseCount(0, 8, scene.Countries[__instance.City.City.Country_id].Dominated == player);
 
         for (int i = 0; i < MainData.Buildings.Length; i++)
             IncreaseCount(1, i+1, (_hub != null) && _hub.HasBuilding(MainData.Buildings[i]));
