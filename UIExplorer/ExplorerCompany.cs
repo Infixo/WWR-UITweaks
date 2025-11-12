@@ -23,10 +23,11 @@ public static class ExplorerCompany_Patches
             Localization.GetGeneral("name"), // 0
             "Value", //Localization.GetCompany("company_value"), // 1
             "Profit", //Localization.GetCompany("operating_profit"), // 2
-            Localization.GetCity("level"), // 3 Level
-            "Shares", //Localization.GetCompany("company_shares"), // 4
-            Localization.GetCompany("hubs"), // 5
-            Localization.GetInfrastructure("vehicles"), // 6
+            "ROA", // 3
+            Localization.GetCity("level"), // 4 Level
+            "Shares", //Localization.GetCompany("company_shares"), // 5
+            Localization.GetCompany("hubs"), // 6
+            Localization.GetInfrastructure("vehicles"), // 7
         ];
         return false;
     }
@@ -35,7 +36,7 @@ public static class ExplorerCompany_Patches
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerCompany_GetMainControl_Prefix(ExplorerCompany __instance, GameScene scene)
     {
-        Label[] Labels = new Label[7];
+        Label[] Labels = new Label[8];
         __instance.SetPublicProperty("Labels", Labels);
 
         // Main button
@@ -74,14 +75,16 @@ public static class ExplorerCompany_Patches
         _front.Zoom_local = 0.2f;
         main_grid.Transfer(_front, 0, 0);
 
+        int col = 0;
+
         // 0 Name
         string _nameTxt = __instance.Company.Info.Name;
         if (__instance.Company.Info is CompanyGenerated _info)
             _nameTxt += $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({_info.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
         Label _name = LabelPresets.GetDefault(_nameTxt, scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content * 3);
-        main_grid.Transfer(_name, 0, 0);
-        Labels[0] = _name;
+        main_grid.Transfer(_name, col, 0);
+        Labels[col++] = _name;
         if (__instance.Company.Bankrupt)
             _name.Color = LabelPresets.Color_negative;
         else if (__instance.Company.ID == scene.Session.Player)
@@ -91,46 +94,53 @@ public static class ExplorerCompany_Patches
         Label _value = LabelPresets.GetDefault("999", scene.Engine);
         _value.Margin_local = new FloatSpace(MainData.Margin_content);
         _value.horizontal_alignment = HorizontalAlignment.Right;
-        main_grid.Transfer(_value, 1, 0);
-        Labels[1] = _value;
+        main_grid.Transfer(_value, col, 0);
+        Labels[col++] = _value;
 
         // 2 Profit
         Label _balance = LabelPresets.GetDefault("999", scene.Engine);
         _balance.Margin_local = new FloatSpace(MainData.Margin_content);
         _balance.horizontal_alignment = HorizontalAlignment.Right;
-        main_grid.Transfer(_balance, 2, 0);
-        Labels[2] = _balance;
+        main_grid.Transfer(_balance, col, 0);
+        Labels[col++] = _balance;
 
-        // 3 Level
+        // 3 ROA
+        Label _roa = LabelPresets.GetDefault("9.9%", scene.Engine);
+        _roa.Margin_local = new FloatSpace(MainData.Margin_content);
+        _roa.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_roa, col, 0);
+        Labels[col++] = _roa;
+
+        // 4 Level
         Label _level = LabelPresets.GetDefault("<!cicon_star> " + STM.GameWorld.Tasks.CompanyTask.GetLevel(__instance.Company, true).ToString(), scene.Engine);
         _level.Margin_local = new FloatSpace(MainData.Margin_content);
         _level.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_level, 3, 0);
-        Labels[3] = _level;
+        main_grid.Transfer(_level, col, 0);
+        Labels[col++] = _level;
 
-        // 4 Shares
+        // 5 Shares
         float _owned = __instance.Company.Shares.GetOwnedBy(scene.Session.GetPlayer());
         Label _shares = LabelPresets.GetDefault(_owned > 0 ? StrConversions.Percent(_owned) : "", scene.Engine);
         if (_owned > 0.5f)
             _shares.Color = LabelPresets.Color_positive;
         _shares.Margin_local = new FloatSpace(MainData.Margin_content);
         _shares.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_shares, 4, 0);
-        Labels[4] = _shares;
+        main_grid.Transfer(_shares, col, 0);
+        Labels[col++] = _shares;
 
-        // 5 Hubs
+        // 6 Hubs
         Label _hubs = LabelPresets.GetDefault(__instance.Company.Hubs.ToString(), scene.Engine);
         _hubs.Margin_local = new FloatSpace(MainData.Margin_content);
         _hubs.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_hubs, 5, 0);
-        Labels[5] = _hubs;
+        main_grid.Transfer(_hubs, col, 0);
+        Labels[col++] = _hubs;
 
-        // 6 Vehicles
+        // 7 Vehicles
         Label _vehicles = LabelPresets.GetDefault(__instance.Company.GetVehiclesWithIcons(), scene.Engine);
         _vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
         _vehicles.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_vehicles, 6, 0);
-        Labels[6] = _vehicles;
+        main_grid.Transfer(_vehicles, col, 0);
+        Labels[col++] = _vehicles;
 
         return false;
     }
@@ -151,10 +161,13 @@ public static class ExplorerCompany_Patches
 
 
     [HarmonyPatch("Update"), HarmonyPostfix]
-    public static void ExplorerCompany_Update_Postfix(ExplorerCompany __instance, GameScene scene, Company company)
+    public static void ExplorerCompany_Update_Postfix(ExplorerCompany __instance, GameScene scene, Company company, long ___value, long ___profit)
     {
-        __instance.Labels[5].Text = __instance.Company.Hubs.ToString();
-        __instance.Labels[6].Text = __instance.Company.GetVehiclesWithIcons();
+        float _roa = ___value > 100 ? 100f * (float)___profit / (float)___value : 0;
+        __instance.Labels[3].Text = ___value > 100 ? $"{_roa:F1}%" : "-";
+        __instance.Labels[3].Color = _roa < 0 || ___value <= 100 ? LabelPresets.Color_negative : LabelPresets.Color_positive;
+        __instance.Labels[6].Text = __instance.Company.Hubs.ToString();
+        __instance.Labels[7].Text = __instance.Company.GetVehiclesWithIcons();
     }
 
 
@@ -169,34 +182,49 @@ public static class ExplorerCompany_Patches
         GameScene scene = (GameScene)GameEngine.Last.Main_scene;
         int result = 0;
 
-        // 3 Level
+        // 3 ROA
         if (sort_id % __instance.Labels.Length == 3)
+        {
+            long valueThis = __instance.GetPrivateField<long>("value");
+            long valueItem = _item.GetPrivateField<long>("value");
+            if (valueThis > 100 && valueItem > 100)
+            {
+                long profitThis = __instance.GetPrivateField<long>("profit");
+                long profitItem = _item.GetPrivateField<long>("profit");
+                result = (1000L * profitThis / valueThis).CompareTo(1000L * profitItem / valueItem);
+            }
+            else
+                result = valueThis.CompareTo(valueItem);
+        }
+
+        // 4 Level
+        if (sort_id % __instance.Labels.Length == 4)
         {
             Company player = scene.Session.GetPlayer();
             result = STM.GameWorld.Tasks.CompanyTask.GetLevel(__instance.Company, true).CompareTo(STM.GameWorld.Tasks.CompanyTask.GetLevel(_item.Company, true));
             if (result == 0)
-                result = __instance.Company.GetValue(scene).CompareTo(_item.Company.GetValue(scene));
+                result = __instance.GetPrivateField<long>("value").CompareTo(_item.GetPrivateField<long>("value"));
         }
 
-        // 4 Shares
-        if (sort_id % __instance.Labels.Length == 4)
+        // 5 Shares
+        if (sort_id % __instance.Labels.Length == 5)
         {
             Company player = scene.Session.GetPlayer();
             result = __instance.Company.Shares.GetOwnedBy(player).CompareTo(_item.Company.Shares.GetOwnedBy(player));
             if (result == 0)
-                result = __instance.Company.GetValue(scene).CompareTo(_item.Company.GetValue(scene));
+                result = __instance.GetPrivateField<long>("value").CompareTo(_item.GetPrivateField<long>("value"));
         }
 
-        // 5 Hubs
-        if (sort_id % __instance.Labels.Length == 5)
+        // 6 Hubs
+        if (sort_id % __instance.Labels.Length == 6)
         {
             result = __instance.Company.Hubs.CompareTo(_item.Company.Hubs);
             if (result == 0)
                 result = __instance.Company.Vehicles.CompareTo(_item.Company.Vehicles);
         }
 
-        // 6 Vehicles
-        if (sort_id % __instance.Labels.Length == 6)
+        // 7 Vehicles
+        if (sort_id % __instance.Labels.Length == 7)
         {
             result = __instance.Company.Vehicles.CompareTo(_item.Company.Vehicles);
             if (result == 0)
