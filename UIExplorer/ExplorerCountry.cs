@@ -1,12 +1,14 @@
 ﻿using HarmonyLib;
-using Utilities;
 using STM.Data;
 using STM.GameWorld;
 using STM.UI;
 using STM.UI.Explorer;
+using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
+using System.Runtime.CompilerServices;
+using Utilities;
 
 namespace UITweaks.Patches;
 
@@ -14,18 +16,63 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(ExplorerCountry))]
 public static class ExplorerCountry_Patches
 {
+    // Data extensions
+    public class ExtraData
+    {
+        public string Name = "";
+    }
+    private static readonly ConditionalWeakTable<ExplorerCountry, ExtraData> _extras = [];
+    public static ExtraData Extra(this ExplorerCountry item) => _extras.GetOrCreateValue(item);
+
+
+    // Patch needed to get proper tooltips for columns.
+    [HarmonyPatch(typeof(InfoUI), "OpenCountries"), HarmonyPrefix]
+    public static bool InfoUI_OpenCountries_Prefix(InfoUI __instance, IControl parent, Session ___Session)
+    {
+        ExplorerUI<ExplorerCountry> explorerUI = 
+            new ExplorerUI<ExplorerCountry>(
+                __instance.CallPrivateMethod<string[]>("GetCountriesCategories", []), 
+                (item) => __instance.CallPrivateMethodVoid("OnCountrySelect", [item]),
+                null, 
+                parent.Ui, 
+                ___Session.Scene, 
+                0, 
+                "ve_countries", 
+                (parent, id) => __instance.GetCountryTooltip(parent, id));
+        explorerUI.AddItems(() => __instance.CallPrivateMethod<GrowArray<ExplorerCountry>>("GetCountries", []));
+        explorerUI.AddToControlBellow(parent);
+        return false;
+    }
+
     [HarmonyPatch(typeof(InfoUI), "GetCountriesCategories"), HarmonyPrefix]
     public static bool InfoUI_GetCountriesCategories_Prefix(ref string[] __result)
     {
         __result =
         [
-        Localization.GetGeneral("name"),
-        Localization.GetCity("cities"),
-        Localization.GetCity("level"),
-        "Avg",
-        "<!cicon_locate>"
+        Localization.GetGeneral("name"), // 0
+        Localization.GetCity("cities"), // 1
+        Localization.GetCity("level"), // 2
+        "Avg", // 3
+        "<!cicon_locate>", // 4
+        Localization.GetCity("country_trust"), // 5
         ];
         return false;
+    }
+
+    public static void GetCountryTooltip(this InfoUI ui, IControl parent, int id)
+    {
+        GameEngine engine = ui.GetPrivateField<Session>("Session").Scene.Engine;
+        TooltipPreset? _tooltip = null;
+        switch (id)
+        {
+            case 3:
+                _tooltip = TooltipPreset.Get("Average city level", engine);
+                break;
+            case 4:
+                _tooltip = TooltipPreset.Get("Not connected cities", engine);
+                break;
+        }
+        _tooltip?.AddToControlBellow(parent);
     }
 
 
@@ -33,7 +80,7 @@ public static class ExplorerCountry_Patches
     public static bool ExplorerCountry_GetMainControl_Prefix(ExplorerCountry __instance, GameScene scene)
     {
         // define more labels
-        Label[] tmpLabels = new Label[5];
+        Label[] tmpLabels = new Label[6];
         ExtensionsHelper.SetPublicProperty(__instance, "Labels", tmpLabels);
 
         // control - button
@@ -109,6 +156,21 @@ public static class ExplorerCountry_Patches
         main_grid.Transfer(_connected, 4, 0);
         __instance.Labels[4] = _connected;
 
+        // 5 Trust
+        Label _trust = LabelPresets.GetDefault("", scene.Engine);
+        if (__instance.Country.Dominated != ushort.MaxValue)
+        {
+            Company comp = scene.Session.Companies[__instance.Country.Dominated];
+            __instance.Extra().Name = comp.Info.Name;
+            _trust.Text = comp.GetName();
+            if (comp.ID == scene.Session.Player)
+                _trust.Color = LabelPresets.Color_positive;
+        }
+        _trust.Margin_local = new FloatSpace(MainData.Margin_content);
+        _trust.horizontal_alignment = HorizontalAlignment.Left;
+        main_grid.Transfer(_trust, 5, 0);
+        __instance.Labels[5] = _trust;
+
         // store into private fields
         __instance.SetPrivateField("main_grid", main_grid);
         __instance.SetPrivateField("main_button", main_button);
@@ -139,34 +201,43 @@ public static class ExplorerCountry_Patches
     {
         ExplorerCountry _item = (ExplorerCountry)item;
         if (__instance.Valid != _item.Valid) return; // this case was completed in the original
+        if (sort_id % __instance.Labels.Length < 3) return;
 
-        // 3 Average
+        int result = 0;
+
+        // 3 Average city level
         if (sort_id % __instance.Labels.Length == 3)
         {
             float averageThis = (float)__instance.Country.GetLevel() / (float)__instance.Country.GetVisibleCities();
             float averageItem = (float)_item.Country.GetLevel() / (float)_item.Country.GetVisibleCities();
-            if (sort_id < __instance.Labels.Length)
-                __result = averageThis > averageItem;
-            else
-                __result = averageThis < averageItem;
-            return;
+            result = averageThis.CompareTo(averageItem);
         }
 
-        // 4 Connected
+        // 4 Not connected cities
         if (sort_id % __instance.Labels.Length == 4)
         {
-            /* sorts by percent of connected cities
-            float connectedThis = (float)__instance.Country.GetConnectedCities() / (float)__instance.Country.GetVisibleCities();
-            float connectedItem = (float)_item.Country.GetConnectedCities() / (float)_item.Country.GetVisibleCities();
-            */
-            // sorts by number of not-connected cities
             int connectedThis = __instance.Country.GetVisibleCities() - __instance.Country.GetConnectedCities();
             int connectedItem = _item.Country.GetVisibleCities() - _item.Country.GetConnectedCities();
-            if (sort_id < __instance.Labels.Length)
-                __result = connectedThis > connectedItem;
-            else
-                __result = connectedThis < connectedItem;
-            return;
+            result = connectedThis.CompareTo(connectedItem);
         }
+
+        // 5 Trust
+        if (sort_id % __instance.Labels.Length == 5)
+        {
+            ushort domThis = __instance.Country.Dominated;
+            ushort domItem = _item.Country.Dominated;
+            if (domThis != ushort.MaxValue && domItem != ushort.MaxValue)
+                result = _item.Extra().Name.CompareTo(__instance.Extra().Name);
+            else if (domThis == ushort.MaxValue && domItem == ushort.MaxValue)
+                result = 0;
+            else
+                result = domThis == ushort.MaxValue ? -1 : +1;
+        }
+
+        // Fail-safe
+        if (result == 0)
+            result = _item.GetPrivateField<string>("name").CompareTo(__instance.GetPrivateField<string>("name"));
+
+        __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
     }
 }
