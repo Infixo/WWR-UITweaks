@@ -87,6 +87,7 @@ public static class ExplorerCity_Patches
             //case 6: // trust
             case 7:
                 _tooltip = TooltipPreset.Get(Localization.GetInfrastructure("infrastructure"), ___Session.Scene.Engine);
+                _tooltip.AddDescription("<!cicon_ship_b> Other player's hub.");
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
@@ -112,13 +113,14 @@ public static class ExplorerCity_Patches
                 "Features", "list", // name + type
                 new FilterCategoryItem("- Reverse -"),
                 new FilterCategoryItem(Localization.GetCompany("hub")),
+                new FilterCategoryItem($"{'\u21D2'} Others"),
                 new FilterCategoryItem("Connected"),
                 new FilterCategoryItem("Important"),
                 new FilterCategoryItem("Port"),
                 new FilterCategoryItem("Resort"),
                 new FilterCategoryItem("Overcrowded"),
                 new FilterCategoryItem("Dominated"),
-                new FilterCategoryItem("...Countries")),
+                new FilterCategoryItem($"{'\u21D2'} Countries")),
             // buildings
             new FilterCategory(
                 Localization.GetInfrastructure("infrastructure"), "list", buildings),
@@ -257,6 +259,8 @@ public static class ExplorerCity_Patches
                 buildings = "<!cicon_storage>";
             _infra = LabelPresets.GetBold(buildings, scene.Engine);
         }
+        else if (__instance.City.Hubs.Count > 0)
+            _infra.Text = "<!cicon_ship_b>";
         InsertLabel(7, _infra);
 
         // store into private fields
@@ -365,18 +369,20 @@ public static class ExplorerCity_Patches
             if (categories[0].Items[1].Selected)
                 result0 &= _hub != null;
             if (categories[0].Items[2].Selected)
-                result0 &= __instance.City.Routes.Count > 0;
+                result0 &= __instance.City.Hubs.Count > 0 && _hub == null;
             if (categories[0].Items[3].Selected)
-                result0 &= __instance.City.Important;
+                result0 &= __instance.City.Routes.Count > 0;
             if (categories[0].Items[4].Selected)
-                result0 &= __instance.City.Sea != null;
+                result0 &= __instance.City.Important;
             if (categories[0].Items[5].Selected)
+                result0 &= __instance.City.Sea != null;
+            if (categories[0].Items[6].Selected)
                 result0 &= __instance.City.City.Resort;
-            if (categories[0].Items[6].Selected) // Overcrowded
+            if (categories[0].Items[7].Selected) // Overcrowded
                 result0 &= (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100;
-            if (categories[0].Items[7].Selected) // Dominated
+            if (categories[0].Items[8].Selected) // Dominated
                 result0 &= __instance.City.Trust.Dominated == player;
-            if (categories[0].Items[8].Selected) // Dominated countries
+            if (categories[0].Items[9].Selected) // Dominated countries
                 result0 &= scene.Countries[__instance.City.City.Country_id].Dominated == player;
             if (categories[0].Items[0].Selected)
                 result0 = !result0;
@@ -423,13 +429,14 @@ public static class ExplorerCity_Patches
 
         // Categories
         IncreaseCount(0, 1, _hub != null);
-        IncreaseCount(0, 2, __instance.City.Routes.Count > 0);
-        IncreaseCount(0, 3, __instance.City.Important);
-        IncreaseCount(0, 4, __instance.City.Sea != null);
-        IncreaseCount(0, 5, __instance.City.City.Resort);
-        IncreaseCount(0, 6, (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100);
-        IncreaseCount(0, 7, __instance.City.Trust.Dominated == player);
-        IncreaseCount(0, 8, scene.Countries[__instance.City.City.Country_id].Dominated == player);
+        IncreaseCount(0, 2, _hub == null && __instance.City.Hubs.Count > 0);
+        IncreaseCount(0, 3, __instance.City.Routes.Count > 0);
+        IncreaseCount(0, 4, __instance.City.Important);
+        IncreaseCount(0, 5, __instance.City.Sea != null);
+        IncreaseCount(0, 6, __instance.City.City.Resort);
+        IncreaseCount(0, 7, (__instance.City.GetTotalIndirect() * 100 / __instance.City.GetMaxIndirect()) > 100);
+        IncreaseCount(0, 8, __instance.City.Trust.Dominated == player);
+        IncreaseCount(0, 9, scene.Countries[__instance.City.City.Country_id].Dominated == player);
 
         for (int i = 0; i < MainData.Buildings.Length; i++)
             IncreaseCount(1, i+1, (_hub != null) && _hub.HasBuilding(MainData.Buildings[i]));
