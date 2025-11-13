@@ -220,12 +220,26 @@ public static class BaseVehicleUI_Patches
     }
 
 
+    /// <summary>
+    /// Finds a hub on a line or returns vehicle's hub if it exists on the line.
+    /// </summary>
+    /// <param name="company"></param>
+    /// <returns></returns>
+    internal static Hub GetHubForVehicle(this Line line, ushort company, VehicleBaseUser vehicle)
+    {
+        foreach (CityUser city in line.Instructions.Cities)
+            if (city.City.City_id == vehicle.Hub.City)
+                return vehicle.Hub;
+        return line.GetHubForVehicle(company);
+    }
+
+
     [HarmonyPatch("ChangeRoute"), HarmonyPrefix]
     public static bool BaseVehicleUI_ChangeRoute_Prefix(BaseVehicleUI __instance, SimpleDropdownItem item)
     {
         __instance.Scene.UI.ClearNestedControls();
         Line _route = __instance.Scene.Session.GetPlayer().Line_manager.Lines[item.Id];
-        Hub _hub = _route.GetHubForVehicle(__instance.Scene.Session.Player);
+        Hub _hub = _route.GetHubForVehicle(__instance.Scene.Session.Player, __instance.Vehicle);
         if (_hub == null)
         {
             ConfirmUI.Get("There is no hub on the target route!", null, null, delegate { }, __instance.Scene.Engine);
@@ -233,7 +247,7 @@ public static class BaseVehicleUI_Patches
             return false;
         }
         // Calculate price
-        long _price = (_hub.Full() && _hub != __instance.Vehicle.Hub ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
+        long _price = (_hub.Full() ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
         if (__instance.Vehicle.Route.Moving)
             _price += __instance.Vehicle.Passengers.GetNextTripPrice(__instance.Vehicle.Route);
         long _import = __instance.Vehicle.GetImportCost(__instance.Scene.Cities[_hub.City].User, __instance.Scene);
@@ -249,7 +263,7 @@ public static class BaseVehicleUI_Patches
             MainData.Sound_error.Play();
             return false;
         }
-        if (_hub.Full() && _hub != __instance.Vehicle.Hub)
+        if (_hub.Full())
             __instance.Scene.Session.Commands.Add(new CommandUpgradeHub(__instance.Scene.Session.Player, _hub.City));
         __instance.Scene.Session.Commands.Add(new CommandChangeRoute(__instance.Scene.Session.Player, _settings, __instance.Vehicle, __instance.Scene.Cities[_hub.City].User));
         MainData.Sound_buy.Play();
@@ -269,7 +283,7 @@ public static class BaseVehicleUI_Patches
         }
         else
         {
-            long _price = (_hub.Full() && _hub != __instance.Vehicle.Hub ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
+            long _price = (_hub.Full() ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
             long _import = __instance.Vehicle.GetImportCost(__instance.Scene.Cities[_hub.City].User, __instance.Scene);
             _price += _import;
             RouteInstance _route = __instance.Vehicle.Route;
@@ -277,7 +291,7 @@ public static class BaseVehicleUI_Patches
             _tooltip.AddPrice(() => _route.Moving ? __instance.Vehicle.Passengers.GetNextTripPrice(_route) : 0, __instance.Scene.currency, "<!cl:passengers:" + Localization.GetCity("passengers_refund") + ">", 1);
             if (_import > 0)
                 _tooltip.AddPrice(_import, __instance.Scene.currency, "<!cl:import:" + Localization.GetGeneral("import") + ">", 1);
-            if (_hub.Full() && _hub != __instance.Vehicle.Hub)
+            if (_hub.Full())
             {
                 _tooltip.AddPrice(_hub.GetNextLevelPrice(__instance.Scene.Session), __instance.Scene.currency, "<!cl:hub:" + Localization.GetCompany("upgrade_hub") + ">", 1);
                 ExplorerVehicleEntity.AppendPriceAdjust(_tooltip, __instance.Scene);
