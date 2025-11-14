@@ -79,7 +79,7 @@ internal class InterestUI : IFloatUI
     private readonly List<CityCluster> Clusters;
     private ControlCollection clustersCollection;
     private ScrollSettings clustersScroll;
-    private readonly Dictionary<CityCluster, Grid> clustersItems;
+    private readonly Dictionary<CityCluster, (Label, ButtonItem)> clustersItems;
     private CityCluster? selected;
     private readonly List<CityUser> MainCities;
 
@@ -108,6 +108,12 @@ internal class InterestUI : IFloatUI
         clustersItems = [];
         selected = null;
         MainCities = [];
+
+        // Load main cities from the history
+        string[] _ids = UIHistory.Get<string>("rp_cities", default_value: "").Split(','); // rp = route planner
+        for (int i = 0; i < _ids.Length; i++)
+            if (int.TryParse(_ids[i], out int _id) && _id < scene.Cities.Count)
+                MainCities.Add(scene.Cities[_id].User);
 
         // Arrows
         arrows = new GrowArray<PathArrow>();
@@ -170,7 +176,6 @@ internal class InterestUI : IFloatUI
         citiesCollection = new ControlCollection(ContentRectangle.Zero);
         citiesCollection.horizontal_alignment = HorizontalAlignment.Stretch;
         ScrollSettings _settings = ContentPreset.GetScrollSettingsNoMargin();
-        //_settings.history = "c_" + City.City.City_id + "ts";
         //IControl _scroll = ScrollPreset.GetVertical(ContentRectangle.Stretched, citiesControlCollection, _settings); // oringal call
         //new ScrollPreset(rectangle, child, settings, ScrollType.Vertical, on_scroll).main_control; // GetVertical
         // ScrollPreset has private constructor and we need to store it to later access the vertical slider
@@ -353,6 +358,7 @@ internal class InterestUI : IFloatUI
 
         // Epsilon controls
 
+        epsilon = UIHistory.Get<double>("rp_eps", default_value: 200.0); // rp = route planner
         Label _epsilonLabel = LabelPresets.GetBold(StrConversions.GetDistance(epsilon), Scene.Engine, LabelPresets.Color_stats);
         _epsilonLabel.horizontal_alignment = HorizontalAlignment.Center;
         _epsilonLabel.Margin_local = new FloatSpace(MainData.Margin_content_items, 0f);
@@ -366,6 +372,7 @@ internal class InterestUI : IFloatUI
             {
                 epsilon += 50d;
                 _epsilonLabel.Text = StrConversions.GetDistance(epsilon);
+                UIHistory.Add("rp_eps", epsilon);
                 RefreshClusters();
             }
             else
@@ -380,6 +387,7 @@ internal class InterestUI : IFloatUI
             {
                 epsilon -= 50d;
                 _epsilonLabel.Text = StrConversions.GetDistance(epsilon);
+                UIHistory.Add("rp_eps", epsilon);
                 RefreshClusters();
             }
             else
@@ -388,6 +396,7 @@ internal class InterestUI : IFloatUI
 
         // Min cities controls
 
+        minCities = UIHistory.Get<int>("rp_min", default_value: 3); // rp = route planner
         Label _minCitiesLabel = LabelPresets.GetBold($"<!cicon_city> {minCities}", Scene.Engine, LabelPresets.Color_stats);
         _minCitiesLabel.horizontal_alignment = HorizontalAlignment.Center;
         _minCitiesLabel.Margin_local = new FloatSpace(MainData.Margin_content_items, 0f);
@@ -401,6 +410,7 @@ internal class InterestUI : IFloatUI
             {
                 minCities += 1;
                 _minCitiesLabel.Text = $"<!cicon_city> {minCities}";
+                UIHistory.Add("rp_min", minCities);
                 RefreshClusters();
             }
             else
@@ -415,6 +425,7 @@ internal class InterestUI : IFloatUI
             {
                 minCities -= 1;
                 _minCitiesLabel.Text = $"<!cicon_city> {minCities}";
+                UIHistory.Add("rp_min", minCities);
                 RefreshClusters();
             }
             else
@@ -422,12 +433,32 @@ internal class InterestUI : IFloatUI
         };
 
 
-        // Sort button
-        Button _sort = ButtonPresets.IconGreen(new ContentRectangle(0f, 0f, MainData.Size_button, MainData.Size_button, 1f), MainData.Icon_cogwheel, Scene.Engine).Control;
-        _sort.horizontal_alignment = HorizontalAlignment.Center;
-        _sort.vertical_alignment = VerticalAlignment.Center;
-        _sort.Margin_local = new FloatSpace(0f); //, 0f);
-        _grid.Transfer(_sort, 7, 0);
+        // Main cities button
+        Button _cities = ButtonPresets.IconGreen(new ContentRectangle(0f, 0f, MainData.Size_button, MainData.Size_button, 1f), MainData.Icon_city, Scene.Engine).Control;
+        _cities.horizontal_alignment = HorizontalAlignment.Center;
+        _cities.vertical_alignment = VerticalAlignment.Center;
+        _grid.Transfer(_cities, 7, 0);
+        _cities.OnButtonPress += (Action)delegate
+        {
+            if (Scene.Engine.Keys.Ctrl)
+            {
+                MainCities.Clear();
+                foreach(var pair in clustersItems)
+                {
+                    ButtonItem _select = pair.Value.Item2;
+                    _select.Icon.Graphics = MainData.Icon_toggle_off;
+                }
+            }
+        };
+        _cities.OnMouseStillTime += (Action)delegate
+        {
+            TooltipPreset tt = TooltipPreset.Get("Main cities", Scene.Engine);
+            tt.AddDescription("Ctrl+click to clear the list.");
+            tt.AddSeparator();
+            foreach (CityUser city in MainCities)
+                tt.AddDescription(city.GetNameWithIcon(Scene));
+            tt.AddToControlAuto(_cities);
+        };
 
         // Scroll area
         clustersCollection = new ControlCollection(ContentRectangle.Zero);
@@ -460,12 +491,13 @@ internal class InterestUI : IFloatUI
         clustersCollection.Size_local = new Vector2(0f, _y);
         clustersCollection.Parent.Parent.dirty_size = true;
 
+        // Process selected cluster
         selected = null;
         if (Clusters.Count > 0)
             selected = Clusters.Where(x => x.ID > 0).MaxBy(x => x.Cities.Length) ?? Clusters[0];
         if (selected != null)
         {
-            ((Label)clustersItems[selected][1]).Color = LabelPresets.Color_positive;
+            clustersItems[selected].Item1.Color = LabelPresets.Color_positive;
             GenerateArrows(selected);
         }
         else DestroyArrows();
@@ -486,7 +518,6 @@ internal class InterestUI : IFloatUI
         //_content.Transfer(_grid);
         clustersCollection.Transfer(_grid);
         y += _grid.Size_local_total.Y;
-        clustersItems.Add(cluster, _grid);
 
         // Hover button
         Button _button = ButtonPresets.GetBlack(ContentRectangle.Stretched, Scene.Engine, out ControlCollection _content);
@@ -505,7 +536,7 @@ internal class InterestUI : IFloatUI
             else
             {
                 if (selected != null)
-                    ((Label)clustersItems[selected][1]).Color = LabelPresets.Color_main;
+                    clustersItems[selected].Item1.Color = LabelPresets.Color_main;
                 selected = cluster;
                 ((Label)_grid[1]).Color = LabelPresets.Color_positive;
                 GenerateArrows(cluster);
@@ -555,6 +586,8 @@ internal class InterestUI : IFloatUI
                 MainCities.Add(cluster.MainCity);
                 _select.Icon.Graphics = MainData.Icon_toggle_on;
             }
+            // Save to history
+            UIHistory.Add("rp_cities", String.Join(',', MainCities.Select(c => c.City.City_id.ToString())));
         };
         _select.Control.OnMouseStillTime += () => TooltipPreset.Get("Mark as cluster's main city", Scene.Engine).AddToControlRight(_select.Control);
 
@@ -588,6 +621,8 @@ internal class InterestUI : IFloatUI
             _select.Icon.Graphics = MainCities.Contains(cluster.MainCity) ? MainData.Icon_toggle_on : MainData.Icon_toggle_off;
         }
         UpdateClusterInfo(); // get current data
+
+        clustersItems.Add(cluster, (_name, _select)); // store the name label and select button for later updates
     }
 
     private void GetClusterTooltip(IControl control, CityCluster cluster)
