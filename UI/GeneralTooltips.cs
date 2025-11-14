@@ -82,7 +82,9 @@ public static class GeneralTooltips_Patches
             if (_vehicles[i].Company.Entity != vce)
             {
                 vce = _vehicles[i].Company.Entity;
-                _tooltip.AddDescription($"<!cl:e.{vce.Name}:{vce.Translated_name}> ({vce.Country.Item.Name.GetTranslation(Localization.Language)})");
+                _tooltip.AddStatsLine(
+                    $"<!cl:e.{vce.Name}:{vce.Translated_name}> ({vce.Country.Item.Name.GetTranslation(Localization.Language)})",
+                    $"{_company.Loyalty.GetVehicles(vce)} {Localization.GetInfrastructure("vehicles")}");
             }
             _tooltip.AddStatsLine($"<!cl:e.{_vehicles[i].Name}:{_vehicles[i].GetNameWithIcons()}>", _vehicles[i].CanBuy(_company, -1000L) ? "" : ("<!cicon_lock> " + Localization.GetVehicle("locked")), i % 2 == 1);
         }
