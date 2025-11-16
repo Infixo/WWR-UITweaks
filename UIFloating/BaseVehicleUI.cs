@@ -7,6 +7,7 @@ using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
 using STM.UI.Floating;
+using STM.UI.Stats;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
@@ -396,5 +397,116 @@ public static class BaseVehicleUI_Patches
             _passengers1.Text = text;
             _passengers2.Text = text;
         }
+    }
+
+
+    // Patch to add info about the route: length and travel time
+    [HarmonyPatch("GetPerformance"), HarmonyPrefix]
+    public static bool BaseVehicleUI_GetPerformance_Prefix(BaseVehicleUI __instance, ref Label ___label_balance, ref Label ___label_efficiency)
+    {
+        // Grid 7x6
+        // Row 0,1: space0 + label1 + space2 + label345 + space6
+        // Row 2: space
+        // Row 3,4: icon + graph
+        // Row 5: space
+        int _height = MainData.Size_button * 4 + MainData.Margin_content_items * 2;
+        Grid _grid = new Grid(new ContentRectangle(0f, 0f, 0f, _height, 1f), 7, 6, SizeType.Weight);
+        _grid.horizontal_alignment = HorizontalAlignment.Stretch;
+        //_grid.Margin_local = new FloatSpace(MainData.Margin_content, MainData.Margin_content_items);
+        __instance.CallPrivateMethodVoid("AddControl", [_grid, "perf"]);
+        _grid.SetColumn(0, SizeType.Pixels, MainData.Margin_content);
+        _grid.SetColumn(2, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetColumn(6, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetRow(2, SizeType.Pixels, MainData.Margin_content_items);
+        _grid.SetRow(5, SizeType.Pixels, MainData.Margin_content_items);
+
+        // Panel
+        Company _company = __instance.Vehicle.GetCompany(__instance.Scene);
+        Panel _panel = new Panel(ContentRectangle.Stretched, MainData.Panel_company_back_bottom);
+        _panel.Margin_local = new FloatSpace(-MainData.Margin_content + MainData.Margin_content_items + 2, 0f);
+        _panel.Color = _company.Color_secondary;
+        _panel.use_multi_texture = true;
+        _grid.Transfer(_panel, 0, 4, _grid.Columns_count, 2);
+
+        // Vehicle icon
+        if (__instance.Vehicle.Entity_base.Graphics.Entity != null)
+        {
+            VehicleGraphicsSprite _graphics = __instance.Vehicle.Entity_base.Graphics.Entity.Icon;
+            Panel _icon = new Panel(new VehicleSprite(_graphics, __instance.Scene.Session.Companies[__instance.Vehicle.Company].Info));
+            _icon.horizontal_alignment = HorizontalAlignment.Stretch;
+            _icon.vertical_alignment = VerticalAlignment.Stretch;
+            _grid.Transfer(_icon, 1, 2, 1, 4);
+            _icon.OnMouseStillTime += (Action)delegate
+            {
+                GeneralTooltips.GetVehicle(__instance.Vehicle.Entity_base, __instance.Scene.Engine).AddToControlAuto(_icon);
+            };
+        }
+
+        // Performance tooltip
+        ControlContainer _container_performance = new ControlContainer(ContentRectangle.Stretched);
+        _container_performance.mouse_pass = false;
+        _grid.Transfer(_container_performance, 0, 0, _grid.Columns_count, 2);
+        _container_performance.OnMouseStillTime += () => __instance.CallPrivateMethodVoid("GetPerformanceTooltip", [_container_performance]);
+
+        // Labels Row0
+        Label _perf = LabelPresets.GetDefault(Localization.GetVehicle("performance"), __instance.Scene.Engine);
+        _perf.horizontal_alignment = HorizontalAlignment.Left;
+        _grid.Transfer(_perf, 1, 0);
+        ___label_balance = LabelPresets.GetBold("", __instance.Scene.Engine);
+        ___label_balance.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(___label_balance, 3, 0);
+        ___label_efficiency = LabelPresets.GetBold("", __instance.Scene.Engine);
+        ___label_efficiency.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(___label_efficiency, 4, 0);
+        Label _passengers = LabelPresets.GetBold(StrConversions.CleanNumber(__instance.Vehicle.Throughput.GetQuarterAverage()) + " <!cicon_passenger><!cicon_fast>", __instance.Scene.Engine);
+        _passengers.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_passengers, 5, 0);
+
+        // Labels Row1
+        string cyclic = __instance.Vehicle.Route.Instructions.Cyclic ? " <!cicon_right><!cicon_right>" : " <!cicon_right><!cicon_left>";
+        Label _route = LabelPresets.GetDefault(Localization.GetVehicle("route") + cyclic, __instance.Scene.Engine);
+        _route.horizontal_alignment = HorizontalAlignment.Left;
+        _grid.Transfer(_route, 1, 1);
+        Label _dist = LabelPresets.GetBold(StrConversions.GetDistance(__instance.Vehicle.Route.Instructions.GetTotalDistance(Line.GetVehicleType(__instance.Vehicle))), __instance.Scene.Engine);
+        _dist.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_dist, 3, 1);
+        Label _stops = LabelPresets.GetBold(__instance.Vehicle.Route.Instructions.Cities.Length.ToString() + " <!cicon_city>", __instance.Scene.Engine);
+        _stops.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_stops, 4, 1);
+        Label _time = LabelPresets.GetBold($"{__instance.Vehicle.GetJourneyTime():F1}h", __instance.Scene.Engine);
+        _time.horizontal_alignment = HorizontalAlignment.Center;
+        _grid.Transfer(_time, 5, 1);
+
+        // Graph
+        IControl _graph = ChartLine.GetSingle(
+            new GraphSettings((x) => __instance.CallPrivateMethod<long>("GetValue", [x]), 12, -1L, -1L, 2L)
+            { update_tooltip = (tooltip, settings, id) => __instance.CallPrivateMethodVoid("UpdateGraphTooltip", [tooltip, settings, id]) },
+            fill: true, _company.GetGridColor());
+        _grid.Transfer(_graph, 3, 3, 3, 2);
+
+        return false;
+    }
+
+
+    // Calculates travel time in hours
+    public static double GetJourneyTime(this VehicleBaseUser vehicle)
+    {
+        Route route = vehicle.Route.Instructions;
+        if (route.Cities.Length < 2)
+            return 0;
+
+        double distance = route.GetTotalDistance(Line.GetVehicleType(vehicle));
+        int waitStops = route.Cyclic ? route.Cities.Length : route.Cities.Length - 1;
+
+        // Get station wait time
+        int stationTime = vehicle.Type switch
+        {
+            UserTypes.Road_vehicle => MainData.Defaults.Bus_station_time,
+            UserTypes.Train => MainData.Defaults.Train_station_time,
+            UserTypes.Plane => MainData.Defaults.Plane_airport_time,
+            UserTypes.Ship => MainData.Defaults.Ship_port_time,
+            _ => 0,
+        };
+        return distance / (double)vehicle.Entity_base.Speed + (double)(waitStops * stationTime) / 3600.0;
     }
 }
