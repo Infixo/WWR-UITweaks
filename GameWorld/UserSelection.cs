@@ -9,6 +9,7 @@ using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
 using UITweaks.UI;
+using UITweaks.UIExplorer;
 using UITweaks.UIFloating;
 using Utilities;
 
@@ -91,12 +92,14 @@ internal static class UserSelection_Patches
 
     private const int WealthGridSize = 420; // 717 - 4 * MainData.Size_button - 67 => 490
     private const int OneButtonSize = 52; // 190/4=47,5
+    private const int NumExplorers = 6;
+    private const int NumCloseButtons = 5;
     private const int LastButtonSize = 67;
 
     [HarmonyPatch(typeof(InfoUI), "GetMainControl"), HarmonyPrefix]
     public static bool GetMainControl(InfoUI __instance)
     {
-        ControlCollection main_collection = new ControlCollection(new ContentRectangle(0f, 0f, (float)(123 + WealthGridSize + 10 * OneButtonSize + LastButtonSize), __instance.CallPrivateMethod<int>("GetHeight", []), 1f));
+        ControlCollection main_collection = new ControlCollection(new ContentRectangle(0f, 0f, (float)(123 + WealthGridSize + (NumExplorers+NumCloseButtons) * OneButtonSize + LastButtonSize), __instance.CallPrivateMethod<int>("GetHeight", []), 1f));
         __instance.SetPrivateField("main_collection", main_collection);
         main_collection.snaps_to_pixel = true;
         return false;
@@ -119,7 +122,7 @@ internal static class UserSelection_Patches
     public static bool InfoUI_GetInfo_Prefix(InfoUI __instance, ref Label ___balance, ref Label ___wealth, Session ___Session)
     {
         // Panel
-        Panel _panel = new Panel(new ContentRectangle(123f, 0f, (float)(WealthGridSize + 10 * OneButtonSize + LastButtonSize), 51f, 1f), MainData.Panel_info_info);
+        Panel _panel = new Panel(new ContentRectangle(123f, 0f, (float)(WealthGridSize + (NumExplorers+NumCloseButtons) * OneButtonSize + LastButtonSize), 51f, 1f), MainData.Panel_info_info);
         _panel.snaps_to_pixel = true;
         _panel.use_multi_texture = true;
         ((ControlCollection)__instance.Main_control).Transfer(_panel);
@@ -140,7 +143,7 @@ internal static class UserSelection_Patches
 
         // Wealth button
         Button _button = ButtonPresets.Get(ContentRectangle.Stretched, ___Session.Scene.Engine, out ControlCollection _collection, null, MainData.Panel_info_vehicles_button_b, mouse_pass: false, MainData.Sound_button_01_press, MainData.Sound_button_01_hover);
-        _button.Margin_local = new FloatSpace((float)(5 * OneButtonSize), 0f, (float)(5 * OneButtonSize + LastButtonSize), 0f);
+        _button.Margin_local = new FloatSpace((float)(NumExplorers * OneButtonSize), 0f, (float)(NumCloseButtons * OneButtonSize + LastButtonSize), 0f);
         _collection.Transfer(_wealth_grid);
         _c.Transfer(_button);
         _button.OnButtonPress += (Action)delegate
@@ -185,6 +188,14 @@ internal static class UserSelection_Patches
         _c.Transfer(_routes);
         _routes.OnButtonPress += () => __instance.CallPrivateMethodVoid("OpenRoutes", [_routes]);
         anchor += OneButtonSize;
+
+        Button _destinations = __instance.CallPrivateMethod<Button>("GetTopButton",
+            [anchor, MainData.Size_button, MainData.Icon_fastest, "destination", "Not connected destinations", null!]);
+        _c.Transfer(_destinations);
+        _destinations.OnButtonPress += () => ExplorerDestination.OpenExplorer(_destinations, ___Session);
+        anchor += OneButtonSize;
+
+        // Wealth grid
         anchor += WealthGridSize;
 
         // New buttons
