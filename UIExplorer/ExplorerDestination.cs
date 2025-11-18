@@ -4,7 +4,9 @@ using STM.GameWorld.Users;
 using STM.UI;
 using STM.UI.Explorer;
 using STMG.UI.Control;
+using STMG.Utility;
 using STVisual.Utility;
+using Utilities;
 
 namespace UITweaks.UIExplorer;
 
@@ -17,13 +19,15 @@ public class ExplorerDestination : IExplorerItem
 
     private Image alt;
 
-    private string country;
+    private string name;
 
-    private PathArrow path;
+    private PathArrow? path;
 
     public GameScene Scene { get; private set; }
 
     public CityUser City { get; private set; }
+
+    public List<CityUser> Origins { get; private set; }
 
     public bool Valid { get; set; }
 
@@ -35,20 +39,23 @@ public class ExplorerDestination : IExplorerItem
 
     public bool Valid_default => true;
 
-    public ExplorerDestination(CityUser city, GameScene scene)
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
+    public ExplorerDestination(CityUser city, List<CityUser> origins, GameScene scene)
     {
-        City = city;
         Scene = scene;
+        City = city;
+        Origins = origins;
         GetMainControl(scene);
         SetUpArrow(scene);
     }
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
     public void Update(GameScene scene, Company company)
     {
         path?.Update(scene.UI.Frame_time, scene);
         if (scene.Session.New_month)
         {
-            Labels[2].Text = "<!cicon_star> " + StrConversions.CleanNumber(City.Level);
+            Labels[1].Text = $"<!cicon_star> {City.Level}";
         }
     }
 
@@ -70,74 +77,26 @@ public class ExplorerDestination : IExplorerItem
     {
         ExplorerDestination _item = (ExplorerDestination)item;
         if (Valid != _item.Valid)
-        {
             return Valid.CompareTo(_item.Valid) > 0;
-        }
-        if (sort_id == 0)
+        int result = 0;
+        switch (sort_id % Labels.Length)
         {
-            int _result3 = Labels[0].Text.CompareTo(_item.Labels[0].Text);
-            if (_result3 == 0)
-            {
-                return country.CompareTo(_item.country) < 0;
-            }
-            return _result3 < 0;
+            case 0: // name
+                result = _item.name.CompareTo(name);
+                break;
+            case 1: // level
+                result = City.Level.CompareTo(_item.City.Level);
+                break;
+            case 2: // count
+                result = Origins.Count.CompareTo(_item.Origins.Count);
+                break;
         }
-        if (sort_id - Labels.Length == 0)
-        {
-            int _result5 = Labels[0].Text.CompareTo(_item.Labels[0].Text);
-            if (_result5 == 0)
-            {
-                return country.CompareTo(_item.country) < 0;
-            }
-            return _result5 > 0;
-        }
-        if (sort_id == 1)
-        {
-            int _result6 = country.CompareTo(_item.country);
-            if (_result6 == 0)
-            {
-                _result6 = City.Level.CompareTo(_item.City.Level);
-                if (_result6 == 0)
-                {
-                    return Labels[0].Text.CompareTo(_item.Labels[0].Text) < 0;
-                }
-                return _result6 > 0;
-            }
-            return _result6 < 0;
-        }
-        if (sort_id - Labels.Length == 1)
-        {
-            int _result4 = country.CompareTo(_item.country);
-            if (_result4 == 0)
-            {
-                _result4 = City.Level.CompareTo(_item.City.Level);
-                if (_result4 == 0)
-                {
-                    return Labels[0].Text.CompareTo(_item.Labels[0].Text) < 0;
-                }
-                return _result4 > 0;
-            }
-            return _result4 > 0;
-        }
-        if (sort_id == 2)
-        {
-            int _result2 = City.Level.CompareTo(_item.City.Level);
-            if (_result2 == 0)
-            {
-                return Labels[0].Text.CompareTo(_item.Labels[0].Text) < 0;
-            }
-            return _result2 > 0;
-        }
-        if (sort_id - Labels.Length == 2)
-        {
-            int _result = City.Level.CompareTo(_item.City.Level);
-            if (_result == 0)
-            {
-                return Labels[0].Text.CompareTo(_item.Labels[0].Text) > 0;
-            }
-            return _result < 0;
-        }
-        return false;
+
+        // Fail-safe
+        if (result == 0)
+            result = _item.name.CompareTo(name);
+
+        return sort_id < Labels.Length ? result > 0 : result < 0;
     }
 
     public void GetSizes(int[] sizes)
@@ -185,26 +144,33 @@ public class ExplorerDestination : IExplorerItem
             main_grid.update_children = false;
         };
         _collection.Transfer(main_grid);
-        Label _name = LabelPresets.GetDefault(City.Name, scene.Engine);
+        // 0 Name & Country
+        string _country = City.GetCountryName(scene);
+        name = City.Name + " " + _country;
+        Label _name = LabelPresets.GetDefault($"{City.GetNameWithIcon(scene)} <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({_country})", scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
         main_grid.Transfer(_name, 0, 0);
         Labels[0] = _name;
-        Country _c = City.City.GetCountry(scene);
-        country = _c.Name.GetTranslation(Localization.Language);
-        Label _country = LabelPresets.GetDefault("<!cicon_" + _c.ISO3166_1 + ":28> " + country, scene.Engine);
-        _country.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_country, 1, 0);
-        Labels[1] = _country;
-        Label _level = LabelPresets.GetDefault("<!cicon_star> " + StrConversions.CleanNumber(City.Level), scene.Engine);
+        // 1 Level
+        Label _level = LabelPresets.GetDefault($"<!cicon_star> {City.Level}", scene.Engine);
         _level.Margin_local = new FloatSpace(MainData.Margin_content);
         _level.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_level, 2, 0);
-        Labels[2] = _level;
+        main_grid.Transfer(_level, 1, 0);
+        Labels[1] = _level;
+        // 2 Count
+        Label _count = LabelPresets.GetDefault(Origins.Count.ToString(), scene.Engine);
+        _count.Margin_local = new FloatSpace(MainData.Margin_content);
+        _count.horizontal_alignment = HorizontalAlignment.Center;
+        main_grid.Transfer(_count, 2, 0);
+        Labels[2] = _count;
     }
 
     private void GetTooltip(GameScene scene)
     {
-        GeneralTooltips.GetCity(scene.Engine, City).AddToControlRight(main_button);
+        TooltipPreset tt = TooltipPreset.Get(Localization.GetCity("cities"), scene.Engine);
+        foreach(CityUser city in Origins.OrderBy(x => x.City.Country_id).ThenBy(x => x.Name))
+            tt.AddStatsLine(city.GetNameWithIcon(scene), city.GetCountryName(scene));
+        tt.AddToControlRight(main_button);
     }
 
     private void SetUpArrow(GameScene scene)
@@ -236,20 +202,35 @@ public class ExplorerDestination : IExplorerItem
 
     internal static void OpenExplorer(IControl parent, Session session)
     {
+        /* performance test
+        WorldwideRushExtensions.CounterIsConn = 0;
+        WorldwideRushExtensions.CounterGetLine0 = 0;
+        WorldwideRushExtensions.CounterGetLine1 = 0;
+        WorldwideRushExtensions.CounterGetLine2 = 0;
+        WorldwideRushExtensions.CounterGetLine3 = 0;
+        WorldwideRushExtensions.CounterGetPath = 0;
+        Stopwatch sw = new();
+        sw.Reset(); sw.Start();
+        */
         Session = session;
-        ExplorerUI<ExplorerDestination> explorerUI = new ExplorerUI<ExplorerDestination>(GetCategories(), OnItemSelect, null, parent.Ui, session.Scene, 1, "ve_dest", GetItemTooltip);
+        ExplorerUI<ExplorerDestination> explorerUI = new ExplorerUI<ExplorerDestination>(GetCategories(), OnItemSelect, null, parent.Ui, session.Scene, 2, "ve_dest", GetItemTooltip);
         explorerUI.AddItems(GetExplorerItems);
         explorerUI.AddToControlBellow(parent);
+        /* performance test
+        sw.Stop();
+        Log.Write($"Elapsed time: {sw.ElapsedMilliseconds} ms, IC={WorldwideRushExtensions.CounterIsConn} GP={WorldwideRushExtensions.CounterGetPath}");
+        Log.Write($"Counters: 0= {WorldwideRushExtensions.CounterGetLine0} 1={WorldwideRushExtensions.CounterGetLine1} 2={WorldwideRushExtensions.CounterGetLine2} 3={WorldwideRushExtensions.CounterGetLine3} ");
+        */
     }
 
     private static string[] GetCategories()
     {
-        return new string[3]
-        {
-        Localization.GetGeneral("name"),
-        Localization.GetCity("country"),
-        Localization.GetCity("level")
-        };
+        return
+        [
+        Localization.GetGeneral("name"), // 0
+        Localization.GetCity("level"), // 1
+        "<!cicon_city>", // 2
+        ];
     }
 
     private static void OnItemSelect(ExplorerDestination item)
@@ -261,31 +242,57 @@ public class ExplorerDestination : IExplorerItem
 
     private static void GetItemTooltip(IControl parent, int id)
     {
-        TooltipPreset _tooltip = null;
+        TooltipPreset? _tooltip = null;
         switch (id)
         {
             case 0:
                 _tooltip = GeneralTooltips.GetCity(Session?.Scene.Engine);
                 break;
             case 2:
-                _tooltip = GeneralTooltips.GetCity(Session?.Scene.Engine);
+                _tooltip = TooltipPreset.Get("Number of origin cities.", Session?.Scene.Engine);
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
     }
 
+
     private static GrowArray<ExplorerDestination> GetExplorerItems()
     {
         GrowArray<ExplorerDestination> _result = new GrowArray<ExplorerDestination>();
         if (Session == null) return _result;
+        // Process all origin cities
+        ushort _player = Session.Player;
         GrowArray<City> _cities = Session.Scene.Cities;
+        Dictionary<CityUser, List<CityUser>> _dests = [];
+        GrowArray<City[]> _allPaths = new();
+        bool _allPathsDirty = true;
         for (int i = 0; i < _cities.Count; i++)
         {
-            if (_cities[i].User.Level > 0)
-            {
-                _result.Add(new ExplorerDestination(_cities[i].User, Session.Scene));
-            }
+            CityUser _city = _cities[i].User;
+            _allPaths.Clear();
+            _allPathsDirty = true;
+            if (_city.Level > 0 && _city.Trust.GetTrust(_player) > 0)
+                // Process all destinations
+                for (int j = 0; j < _city.Destinations.Items.Count; j++)
+                {
+                    CityDestination _dest = _city.Destinations.Items[j];
+                    if (_dest.Percent == 0)
+                    {
+                        if (_allPathsDirty)
+                        {
+                            _allPaths = WorldwideRushExtensions.GetAllStoredPaths(_city.Routes, _player);
+                            _allPathsDirty = false;
+                        }
+                        CityUser _destCity = _dest.Destination.User;
+                        if (!_city.IsConnected(_destCity, _player, _allPaths, Session.Scene))
+                            if (!_dests.TryAdd(_destCity, new List<CityUser> { _city }))
+                                _dests[_destCity].Add(_city);
+                    }
+                }
         }
+        // Compile the end result array
+        foreach(var pair in _dests)
+            _result.Add(new ExplorerDestination(pair.Key, pair.Value, Session.Scene));
         return _result;
     }
 }
