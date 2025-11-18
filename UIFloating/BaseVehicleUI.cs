@@ -248,7 +248,7 @@ public static class BaseVehicleUI_Patches
             return false;
         }
         // Calculate price
-        long _price = (_hub.Full() ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
+        long _price = (_hub.Full() && _hub != __instance.Vehicle.Hub ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
         if (__instance.Vehicle.Route.Moving)
             _price += __instance.Vehicle.Passengers.GetNextTripPrice(__instance.Vehicle.Route);
         long _import = __instance.Vehicle.GetImportCost(__instance.Scene.Cities[_hub.City].User, __instance.Scene);
@@ -264,7 +264,7 @@ public static class BaseVehicleUI_Patches
             MainData.Sound_error.Play();
             return false;
         }
-        if (_hub.Full())
+        if (_hub.Full() && _hub != __instance.Vehicle.Hub)
             __instance.Scene.Session.Commands.Add(new CommandUpgradeHub(__instance.Scene.Session.Player, _hub.City));
         __instance.Scene.Session.Commands.Add(new CommandChangeRoute(__instance.Scene.Session.Player, _settings, __instance.Vehicle, __instance.Scene.Cities[_hub.City].User));
         MainData.Sound_buy.Play();
@@ -284,7 +284,7 @@ public static class BaseVehicleUI_Patches
         }
         else
         {
-            long _price = (_hub.Full() ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
+            long _price = (_hub.Full() && _hub != __instance.Vehicle.Hub ? _hub.GetNextLevelPrice(__instance.Scene.Session) : 0);
             long _import = __instance.Vehicle.GetImportCost(__instance.Scene.Cities[_hub.City].User, __instance.Scene);
             _price += _import;
             RouteInstance _route = __instance.Vehicle.Route;
@@ -292,7 +292,7 @@ public static class BaseVehicleUI_Patches
             _tooltip.AddPrice(() => _route.Moving ? __instance.Vehicle.Passengers.GetNextTripPrice(_route) : 0, __instance.Scene.currency, "<!cl:passengers:" + Localization.GetCity("passengers_refund") + ">", 1);
             if (_import > 0)
                 _tooltip.AddPrice(_import, __instance.Scene.currency, "<!cl:import:" + Localization.GetGeneral("import") + ">", 1);
-            if (_hub.Full())
+            if (_hub.Full() && _hub != __instance.Vehicle.Hub)
             {
                 _tooltip.AddPrice(_hub.GetNextLevelPrice(__instance.Scene.Session), __instance.Scene.currency, "<!cl:hub:" + Localization.GetCompany("upgrade_hub") + ">", 1);
                 ExplorerVehicleEntity.AppendPriceAdjust(_tooltip, __instance.Scene);
