@@ -33,6 +33,8 @@ public static class ExplorerCompany_Patches
     }
 
 
+    private const int NameWidth = 520;
+
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerCompany_GetMainControl_Prefix(ExplorerCompany __instance, GameScene scene)
     {
@@ -57,10 +59,8 @@ public static class ExplorerCompany_Patches
         // Grid
         Grid main_grid = new Grid(ContentRectangle.Stretched, Labels.Length, 1, SizeType.Weight);
         __instance.SetPrivateField("main_grid", main_grid);
-        main_grid.OnFirstUpdate += (Action)delegate
-        {
-            main_grid.update_children = false;
-        };
+        main_grid.OnFirstUpdate += () => main_grid.update_children = false;
+        main_grid.OnUpdate += () => main_grid[2].OnUpdate.Invoke(); // scroll for name
         _collection.Transfer(main_grid);
 
         // Logo
@@ -83,7 +83,9 @@ public static class ExplorerCompany_Patches
             _nameTxt += $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({_info.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
         Label _name = LabelPresets.GetDefault(_nameTxt, scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content * 3);
-        main_grid.Transfer(_name, col, 0);
+        IControl _radio = LabelPresets.GetRadio(_name, NameWidth); // scroll
+        _radio.Mouse_visible = false;
+        main_grid.Transfer(_radio, col, 0);
         Labels[col++] = _name;
         if (__instance.Company.Bankrupt)
             _name.Color = LabelPresets.Color_negative;
@@ -236,5 +238,12 @@ public static class ExplorerCompany_Patches
             result = __instance.Company.Info.Name.CompareTo(_item.Company.Info.Name);
 
         __result = sort_id < __instance.Labels.Length ? result > 0 : result < 0;
+    }
+
+
+    [HarmonyPatch("GetSizes"), HarmonyPostfix]
+    public static void ExplorerCompany_GetSizes_Postfix(int[] sizes)
+    {
+        sizes[0] = NameWidth; // name
     }
 }
