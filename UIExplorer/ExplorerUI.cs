@@ -21,11 +21,10 @@ public static class ExplorerUI_Patches
             On_select.DynamicInvoke([item]);
             if (!___Scene.Engine.Keys.Ctrl && !___Scene.Engine.Keys.Shift)
                 __instance.Close();
-            // Get_selected is ALWAYS null atm, perhaps reserved for the future
-            //else if (Get_selected != null)
-            //{
-                //ValidateSelection();
-            //}
+            else if (__instance.GetPrivateField<Delegate>("Get_selected") != null)
+            {
+                __instance.CallPrivateMethodVoid("ValidateSelection", []);
+            }
         };
     }
 

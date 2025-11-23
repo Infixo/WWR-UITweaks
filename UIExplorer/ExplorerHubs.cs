@@ -46,7 +46,7 @@ public static class ExplorerHubs_Patches
 
 
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
-    public static bool GetMainControl(ExplorerHubs __instance, GameScene scene, ref Button ___main_button, ref Image ___alt)
+    public static bool GetMainControl(ExplorerHubs __instance, GameScene scene, ref Button ___main_button, ref Image ___alt, ref Image ___selection)
     {
         // More labels
         Label[] tmpLabels = new Label[8];
@@ -54,7 +54,7 @@ public static class ExplorerHubs_Patches
 
         // Button
         int _height = 32;
-        ___main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: false, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
+        ___main_button = ButtonPresets.Get(new ContentRectangle(0f, 0f, 0f, _height, 1f), scene.Engine, out var _collection, null, MainData.Panel_button_hover, mouse_pass: true, MainData.Sound_button_03_press, MainData.Sound_button_03_hover);
         ___main_button.Opacity = 0f;
         ___main_button.horizontal_alignment = HorizontalAlignment.Stretch;
         ___main_button.OnMouseStillTime += (Action)delegate
@@ -66,41 +66,64 @@ public static class ExplorerHubs_Patches
         ___alt.Opacity = 0f;
         _collection.Transfer(___alt);
 
+        // Patch 1.1.15
+        ___selection = new Image(ContentRectangle.Stretched, MainData.Panel_gradient_left);
+        ___selection.Margin_local = new FloatSpace(0f, 0f);
+        ___selection.Opacity = (__instance.Selected ? 1f : 0f);
+        ___selection.Color = LabelPresets.Color_main;
+        _collection.Transfer(___selection);
+
         // Grid
-        Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length, 1, SizeType.Weight);
+        Grid main_grid = new Grid(ContentRectangle.Stretched, __instance.Labels.Length + 2, 1, SizeType.Weight);
         __instance.SetPrivateField("main_grid", main_grid);
         main_grid.OnFirstUpdate += () => main_grid.update_children = false;
         main_grid.OnUpdate += () => main_grid[7].OnUpdate.Invoke();
         _collection.Transfer(main_grid);
+        main_grid.SetColumn(0, SizeType.Pixels, MainData.Size_button); // Patch 1.1.15
+        main_grid.SetColumn(1, SizeType.Pixels, MainData.Margin_content_items); // patch 1.1.15
 
-        // 1 Name
+        // Patch 1.1.15 selection
+        ButtonItem _select = ButtonPresets.IconBlack(new ContentRectangle(0f, 0f, MainData.Size_button, _height, 1f), __instance.Selected ? MainData.Icon_toggle_on : MainData.Icon_toggle_off, scene.Engine);
+        _collection.Transfer(_select.Control);
+        __instance.SetPrivateField("selection_icon", _select.Icon);
+        _select.Control.OnButtonPress += (Action)delegate
+        {
+            __instance.SetSelected(!__instance.Selected);
+            ExplorerUI<ExplorerHubs> _explorer = __instance.GetPrivateField<ExplorerUI<ExplorerHubs>>("explorer");
+            if (__instance.Selected)
+                _explorer.AddSelected(__instance);
+            else
+                _explorer.RemoveSelected(__instance);
+        };
+
+        // 0 Name
         string name = __instance.City.GetNameWithIcon(scene);
         name += $" <!#{(LabelPresets.Color_main * 0.75f).GetHex()}>({__instance.City.City.GetCountry(scene).Name.GetTranslation(Localization.Language)})";
         Label _name = LabelPresets.GetDefault(name, scene.Engine);
         _name.Margin_local = new FloatSpace(MainData.Margin_content);
-        main_grid.Transfer(_name, 0, 0);
+        main_grid.Transfer(_name, 2, 0);
         __instance.Labels[0] = _name;
 
         // 1 Level
         Label _level = LabelPresets.GetDefault("<!cicon_star> " + StrConversions.CleanNumber(__instance.Hub.Level), scene.Engine);
         _level.Margin_local = new FloatSpace(MainData.Margin_content);
         _level.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_level, 1, 0);
+        main_grid.Transfer(_level, 3, 0);
         __instance.Labels[1] = _level;
 
         // 2 Indirect
         Label _indirect = LabelPresets.GetDefault(StrConversions.OutOf(__instance.City.GetTotalIndirect(), __instance.City.GetMaxIndirect()), scene.Engine);
         _indirect.Margin_local = new FloatSpace(MainData.Margin_content);
         _indirect.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_indirect, 2, 0);
+        main_grid.Transfer(_indirect, 4, 0);
         __instance.Labels[2] = _indirect;
 
         // 3 Vehicles
         HubManager manager = __instance.Hub.Manager;
-        Label _vehicles = LabelPresets.GetDefault(StrConversions.OutOf(__instance.Hub.Vehicles.Count, __instance.Hub.Level * MainData.Defaults.Hub_max_vehicles), scene.Engine);
+        Label _vehicles = LabelPresets.GetDefault(StrConversions.OutOf(__instance.Hub.Vehicles.Count, __instance.Hub.Max_vehicles), scene.Engine);
         _vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
         _vehicles.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_vehicles, 3, 0);
+        main_grid.Transfer(_vehicles, 5, 0);
         __instance.Labels[3] = _vehicles;
 
         if (manager != null)
@@ -117,14 +140,14 @@ public static class ExplorerHubs_Patches
         Label _goal = LabelPresets.GetBold(__instance.GetGoalEx(), scene.Engine);
         _goal.Margin_local = new FloatSpace(MainData.Margin_content);
         _goal.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_goal, 4, 0);
+        main_grid.Transfer(_goal, 6, 0);
         __instance.Labels[4] = _goal;
 
         // 5 Balance
         Label _balance = LabelPresets.GetDefault("", scene.Engine);
         _balance.Margin_local = new FloatSpace(MainData.Margin_content);
         _balance.horizontal_alignment = HorizontalAlignment.Right;
-        main_grid.Transfer(_balance, 5, 0);
+        main_grid.Transfer(_balance, 7, 0);
         __instance.Labels[5] = _balance;
 
         // 6 Budget
@@ -138,7 +161,7 @@ public static class ExplorerHubs_Patches
         Label _budget = LabelPresets.GetDefault(budget, scene.Engine);
         _budget.Margin_local = new FloatSpace(MainData.Margin_content);
         _budget.horizontal_alignment = HorizontalAlignment.Center;
-        main_grid.Transfer(_budget, 6, 0);
+        main_grid.Transfer(_budget, 8, 0);
         __instance.Labels[6] = _budget;
 
         // 7 Brands
@@ -166,7 +189,7 @@ public static class ExplorerHubs_Patches
         _brands.horizontal_alignment = HorizontalAlignment.Left;
         IControl _radio = LabelPresets.GetRadio(_brands, _BrandsWidth); // scroll
         _radio.Mouse_visible = false;
-        main_grid.Transfer(_radio, 7, 0);
+        main_grid.Transfer(_radio, 9, 0);
         __instance.Labels[7] = _brands;
 
         return false;
@@ -230,6 +253,7 @@ public static class ExplorerHubs_Patches
         int _total = __instance.City.GetMaxIndirect();
         __instance.Labels[2].Text = StrConversions.OutOf(_current, _total);
         __instance.Labels[2].Color = __instance.City.OvercrowdedColor(LabelPresets.Color_main);
+        __instance.Labels[3].Text = StrConversions.OutOf(__instance.Hub.Vehicles.Count, __instance.Hub.Max_vehicles);
         ___balance = __instance.Hub.GetQuarterAverage();
         __instance.Labels[5].Text = StrConversions.GetBalanceWithPlus(___balance, scene.currency);
         __instance.Labels[5].Color = ((___balance >= 0) ? LabelPresets.Color_positive : LabelPresets.Color_negative);

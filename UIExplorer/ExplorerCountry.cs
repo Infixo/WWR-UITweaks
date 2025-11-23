@@ -117,7 +117,7 @@ public static class ExplorerCountry_Patches
         __instance.Labels[0] = _country;
 
         // 1 Cities
-        if (!__instance.Country.HasVisibleCities())
+        if (!__instance.Country.HasVisibleCities(scene)) // Patch 1.1.15
         {
             _country.Color = LabelPresets.Color_negative;
         }
