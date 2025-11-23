@@ -37,7 +37,7 @@ public static class CommandNewRoute_Patches
         }
         if (_hub == null)
         {
-            Log.Write("Cannot find the hub!", true);
+            Log.Write($"[{__instance.Company}] Cannot find the hub!", true);
             return false; // DANGER!
         }
         if (_hub.Vehicles.Count >= _hub.Max_vehicles)
@@ -47,7 +47,7 @@ public static class CommandNewRoute_Patches
             commandUpgradeHub.Apply(scene);
             if (_hub.Vehicles.Count >= _hub.Max_vehicles)
             {
-                Log.Write("Failed to force-upgrade the hub!", true);
+                Log.Write($"[{__instance.Company}] Failed to force-upgrade the hub!", true);
                 return false; // DANGER!
             }
         }
@@ -59,12 +59,12 @@ public static class CommandNewRoute_Patches
         // Infixo: in original code there is a minus sign, which is weird since price is always positive
         if (___manager == ushort.MaxValue && _wealth < _vehicle.Price)
         {
-            Log.Write("Not enough wealth to buy a new vehicle!", true);
+            if (__instance.Company == scene.Session.Player) Log.Write($"[{__instance.Company}] Not enough wealth to buy a new vehicle!", true); // This happens VERY often
             return false; // DANGER!
         }
         if (_vehicle is ShipEntity && !__instance.CallPrivateMethod<bool>("CanBeShip", []))
         {
-            Log.Write("Trying to put a ship on land!", true);
+            Log.Write($"[{__instance.Company}] Trying to put a ship on land!", true);
             return false; // DANGER!
         }
 
