@@ -138,7 +138,7 @@ public static class ExplorerCompany_Patches
         Labels[col++] = _hubs;
 
         // 7 Vehicles
-        Label _vehicles = LabelPresets.GetDefault(__instance.Company.GetVehiclesWithIcons(), scene.Engine);
+        Label _vehicles = LabelPresets.GetDefault(__instance.Company.GetVehiclesWithIcons(scene), scene.Engine);
         _vehicles.Margin_local = new FloatSpace(MainData.Margin_content);
         _vehicles.horizontal_alignment = HorizontalAlignment.Center;
         main_grid.Transfer(_vehicles, col, 0);
@@ -148,9 +148,9 @@ public static class ExplorerCompany_Patches
     }
 
 
-    internal static string GetVehiclesWithIcons(this Company company)
+    internal static string GetVehiclesWithIcons(this Company company, GameScene scene)
     {
-        CompanyGenerated.CompanyType _type = CompanyGenerated.CompanyType.All;
+        CompanyGenerated.CompanyType _type = (CompanyGenerated.CompanyType)scene.Settings.Vehicles_flag;
         if (company.Info is CompanyGenerated _info)
             _type = _info.Company_type;
         string _res = company.Vehicles.ToString() + "  |";
@@ -169,7 +169,7 @@ public static class ExplorerCompany_Patches
         __instance.Labels[3].Text = ___value > 100 ? $"{_roa:F1}%" : "-";
         __instance.Labels[3].Color = _roa < 0 || ___value <= 100 ? LabelPresets.Color_negative : LabelPresets.Color_positive;
         __instance.Labels[6].Text = __instance.Company.Hubs.ToString();
-        __instance.Labels[7].Text = __instance.Company.GetVehiclesWithIcons();
+        __instance.Labels[7].Text = __instance.Company.GetVehiclesWithIcons(scene);
     }
 
 
