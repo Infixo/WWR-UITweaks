@@ -1,5 +1,20 @@
 ## Changelog
 
+- v0.11.0 (2025-11-24)
+  - Patch 1.1.15.
+  - NEW ExplorerDestination. Shows cites with no connection from the player's cities.
+  - Main bar displays operating profit. Toggle to balance with ctrl-click.
+  - ExplorerCompany calculates and shows ROA.
+  - ExplorerCity. New filters for dominated cities and other players' hubs.
+  - Adds a new column "Country Trust" to ExplorerCountry.
+  - Destinations changed notification uses colors to mark connected cities.
+  - Route Planner uses UIHistory and adds button to show and clear main cities.
+  - Vehicles tooltip shows number of acquired vehicles from each company.
+  - VehicleUI shows info about the route: length and travel time.
+  - RouteUI shows line ID also for AI companies.
+  - Fixed. ChangeRoute does not try to upgrade a hub if there was no change.
+  - Fixed. Lost vehicles during replacement.
+
 - v0.10.0 (2025-11-11)
   - ExplorerCompany enhancements (level, hubs, vehicles).
   - VehicleUI shows demand price for each passenger group and total weighted.

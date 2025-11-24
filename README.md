@@ -16,14 +16,18 @@
 - InfoUI
   - (0.4) Improved vehicles tooltips.
   - (0.6) Button to close all floating windows at once (0.10) and specific types.
+  - (0.11) Main bar displays operating profit. Toggle to balance with ctrl-click.
+  - (0.11) Vehicles tooltip shows number of acquired vehicles from each company.
+  
 - (0.8) Vehicle tooltip has info about its hub and location on the route.
 - (0.10) CitiesGrown closes with ctrl+click and displays info about new destinations.
+- (0.11) Destinations changed notification uses colors to mark connected cities.
 
 ### Explorers (new columns)
-- Countries. Average city level, how many cities are not connected to any lines.
+- Countries. Average city level, how many cities are not connected to any lines, (0.11) trusted company.
 - Cities.
   - Indirect capacity, biggest crowd, fulfillment, trust, buildings.
-  - (0.2) Filters and counters for city features and buildings.
+  - (0.2, 0.11) Filters and counters for city features and buildings.
   - (0.3) Number of unfulfilled destinations.
 - Lines.
   - Num of cities, total length, (0.10) quarter throughput, (0.4) evaluation flag.
@@ -35,7 +39,8 @@
 - Hubs. 
   - (0.3) Shows budget and brands info.
   - (0.4) Info about generated plans.
-- (0.10) Companies. Level, shares owned, hubs and vehicles.
+- (0.10) Companies. Level, shares owned, hubs and vehicles, (0.11) ROA.
+- (0.11) Not connected destinations.
 
 ### Floating windows
 - RouteUI.
@@ -61,12 +66,14 @@
   - (0.8) Ability to move a single vehicle to a different hub.
   - (0.9) Ctrl-click to edit isolated vehicle route. Click edits the line for all vehicles.
   - (0.10) Demand price for each passenger group and total weighted.
+  - (0.11) Info about the route: length and travel time.
 - (0.7) NEW Route Planner.
   - Groups into clusters cities that have interest in a group of origin cities.
   - Displays connections within a cluster and between the cluster and origin cities.
   - Use Ctrl-RClick on a city to start it and later add more origin cities.
   - (0.7.1) Displays connections between origin cities.
   - (0.7.1) Ability to mark any origin city as main city.
+  - (0.11) Remembers settings during game.
 
 ### Troubleshooting
 - Output messages are logged into UITweaksLog.txt in the %TEMP% dir.
