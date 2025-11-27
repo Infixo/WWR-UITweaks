@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using Microsoft.Xna.Framework;
 using STM.Data;
 using STM.GameWorld;
 using STM.GameWorld.Users;
@@ -6,6 +7,7 @@ using STM.UI;
 using STM.UI.Explorer;
 using STMG.Engine;
 using STMG.UI.Control;
+using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
 
@@ -84,7 +86,13 @@ public static class ExplorerCity_Patches
                 _tooltip = TooltipPreset.Get(Localization.GetCity("fulfillment"), ___Session.Scene.Engine);
                 _tooltip.AddDescription("Number of destinations that are not fulfilled thus preventing the city growth.");
                 break;
-            //case 6: // trust
+            case 6: // trust
+                _tooltip = TooltipPreset.Get(Localization.GetCity("company_trust"), ___Session.Scene.Engine);
+                _tooltip.AddDescription($"<!#{LabelPresets.Color_positive.GetHex()}>Fully dominated.");
+                _tooltip.AddDescription($"<!#{Color.Yellow.GetHex()}>Not fully Dominated.");
+                _tooltip.AddDescription($"<!#{LabelPresets.Color_negative.GetHex()}>Hub in danger of buyout.");
+                _tooltip.AddDescription($"<!#{CanBuildHubColor.GetHex()}>Can build hub.");
+                break;
             case 7:
                 _tooltip = TooltipPreset.Get(Localization.GetInfrastructure("infrastructure"), ___Session.Scene.Engine);
                 _tooltip.AddDescription("<!cicon_ship_b> Other player's hub.");
@@ -136,6 +144,7 @@ public static class ExplorerCity_Patches
         // update modded data here if needed
     }
     */
+    private static readonly Color CanBuildHubColor = new(95, 159, 255);
 
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerCity_GetMainControl_Prefix(ExplorerCity __instance, GameScene scene)
@@ -225,12 +234,24 @@ public static class ExplorerCity_Patches
 
         // 6 MODDED company_trust
         ushort player = scene.Session.Player;
-        Label _trust = LabelPresets.GetDefault(StrConversions.Percent((float)__instance.City.Trust.GetPercent(player)), scene.Engine);
-        if (__instance.City.Trust.Dominated == player) _trust.Color = LabelPresets.Color_positive;
+        decimal trust = __instance.City.Trust.GetPercent(player);
+        Label _trust = LabelPresets.GetDefault(StrConversions.Percent((float)trust), scene.Engine);
         InsertLabel(6, _trust);
 
-        // 7 MODDED infrastructure
+        // Color logic:
+        // blue - can build hub
+        // red - danger, my hub can be bought
+        // yellow - warning, dominated, but <treshold
+        // green - safe, dominated, >treshold
         Hub? hub = __instance.City.GetHub(player);
+        if (__instance.City.Trust.Dominated == player)
+            _trust.Color = trust > MainData.Defaults.Buyout_trust ? LabelPresets.Color_positive : Color.Yellow;
+        else if (hub != null && trust < 0.5m)
+            _trust.Color = LabelPresets.Color_negative;
+        else if (__instance.City.CanBuildHub(scene.Session.GetPlayer()))
+            _trust.Color = CanBuildHubColor;
+
+        // 7 MODDED infrastructure
         Label _infra = LabelPresets.GetDefault("", scene.Engine);
         if (hub != null)
         {
