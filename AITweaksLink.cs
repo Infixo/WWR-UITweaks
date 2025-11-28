@@ -49,7 +49,19 @@ internal static class AITweaksLink
         Log.Write("Found AITweaks: " + asm.FullName);
 
         // Get methods
-        Type? bridgeType = asm?.GetType("AITweaks.Patches.LineEvaluation");
+        //Type? bridgeType = asm?.GetType("AITweaks.Patches.LineEvaluation");
+        Type? bridgeType = null;
+        try
+        {
+            bridgeType = asm.GetTypes().FirstOrDefault(t => t.Name == "LineEvaluation");
+        }
+        catch (Exception ex)
+        {
+            Log.Write("EXCEPTION:" + ex.Message, true);
+            Log.Write("Cannot access LineEvaluation. Cannot use Evaluation Tooltip.");
+            _AITweaksActive = false;
+            return;
+        }
         _GetEvaluationTooltip = bridgeType?.GetMethod("GetEvaluationTooltip", BindingFlags.Public | BindingFlags.Static);
         _GetNumEvaluations = bridgeType?.GetMethod("GetNumEvaluations", BindingFlags.Public | BindingFlags.Static);
         if (_GetEvaluationTooltip == null || _GetNumEvaluations == null)
