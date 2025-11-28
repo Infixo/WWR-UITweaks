@@ -1,5 +1,9 @@
 ## Changelog
 
+- v0.11.1 (2025-11-28)
+  - Explorer city uses colors to show Trust better.
+  - Technial change for better integration with AITweaks.
+
 - v0.11.0 (2025-11-24)
   - Patch 1.1.15.
   - NEW ExplorerDestination. Shows cites with no connection from the player's cities.
