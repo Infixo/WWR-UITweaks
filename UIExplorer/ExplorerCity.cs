@@ -9,14 +9,25 @@ using STMG.Engine;
 using STMG.UI.Control;
 using STMG.Utility;
 using STVisual.Utility;
+using System.Runtime.CompilerServices;
 using Utilities;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIExplorer;
 
 
 [HarmonyPatch(typeof(ExplorerCity))]
 public static class ExplorerCity_Patches
 {
+    // Data extensions
+    public class ExtraData
+    {
+        public bool Discover = false;
+        public (int Num, int Cat) Connections = (0, 0);
+    }
+    private static readonly ConditionalWeakTable<ExplorerCity, ExtraData> _extras = [];
+    public static ExtraData Extra(this ExplorerCity item) => _extras.GetOrCreateValue(item);
+
+
     // Patch necessary to hook filters
     [HarmonyPatch(typeof(InfoUI), "OpenCities"), HarmonyPrefix]
     public static bool InfoUI_OpenCities_Prefix(InfoUI __instance, IControl parent)
@@ -84,7 +95,9 @@ public static class ExplorerCity_Patches
                 break;
             case 5:
                 _tooltip = TooltipPreset.Get(Localization.GetCity("fulfillment"), ___Session.Scene.Engine);
-                _tooltip.AddDescription("Number of destinations that are not fulfilled thus preventing the city growth.");
+                _tooltip.AddDescription(___Session.Scene.Settings.Game_mode == GameMode.Discover
+                    ? "Connections at risk of trigerring the timer."
+                    : "Number of destinations that are not fulfilled thus preventing the city growth.");
                 break;
             case 6: // trust
                 _tooltip = TooltipPreset.Get(Localization.GetCity("company_trust"), ___Session.Scene.Engine);
@@ -145,6 +158,8 @@ public static class ExplorerCity_Patches
     }
     */
     private static readonly Color CanBuildHubColor = new(95, 159, 255);
+
+    private static readonly Color[] DiscoverColors = [LabelPresets.Color_main, Color.Yellow, Color.DarkOrange, Color.Red];
 
     [HarmonyPatch("GetMainControl"), HarmonyPrefix]
     public static bool ExplorerCity_GetMainControl_Prefix(ExplorerCity __instance, GameScene scene)
@@ -229,7 +244,16 @@ public static class ExplorerCity_Patches
         InsertLabel(4, LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.GetBiggestCrowd()), scene.Engine));
 
         // 5 MODDED fulfillment
-        Label _fulfillment = LabelPresets.GetDefault(StrConversions.CleanNumber(__instance.City.Destinations.CountBadDestinations()), scene.Engine);
+        Label _fulfillment = LabelPresets.GetDefault("", scene.Engine);
+        if (scene.Settings.Game_mode == GameMode.Discover)
+        {
+            __instance.Extra().Discover = true;
+            __instance.Extra().Connections = __instance.City.CountConnectionsAtRisk();
+            _fulfillment.Text = __instance.Extra().Connections.Num.ToString();
+            _fulfillment.Color = DiscoverColors[__instance.Extra().Connections.Cat];
+        }
+        else
+            _fulfillment.Text = __instance.City.Destinations.CountBadDestinations().ToString();
         InsertLabel(5, _fulfillment);
 
         // 6 MODDED company_trust
@@ -304,6 +328,35 @@ public static class ExplorerCity_Patches
         return cantGrow;
     }
 
+    internal static (int,int) CountConnectionsAtRisk(this CityUser city)
+    {
+        int _count = 0;
+        int _worst = 0;
+        for (int i = 0; i < city.Destinations.Items.Count; i++)
+        {
+            int _cat = Category(city.Destinations.Items[i].Percent);
+            if (_cat == _worst)
+            {
+                if (_cat > 0 || city.Destinations.Items[i].Percent < 1m)
+                    _count++;
+            }
+            else if (_cat > _worst)
+            {
+                _worst = _cat;
+                _count = 1;
+            }
+        }
+        return (_count, _worst);
+        //return _worst < 0.25m ? Color.DarkOrange : (_worst < 0.5m ? Color.Yellow : defColor);
+        int Category(decimal percent)
+        {
+            if (percent <= 0) return 3;
+            if (percent < 0.25m) return 2;
+            if (percent < 0.5m) return 1;
+            return 0;
+        }
+    }
+
 
     // Extension to get the "biggest crowd" - a destination with the highest number of travellers
     public static int GetBiggestCrowd(this CityUser city)
@@ -340,7 +393,14 @@ public static class ExplorerCity_Patches
         // 5 fulfillment
         if (sort_id % __instance.Labels.Length == 5)
         {
-            result = __instance.City.Destinations.CountBadDestinations().CompareTo(_item.City.Destinations.CountBadDestinations());
+            if (__instance.Extra().Discover)
+            {
+                result = __instance.Extra().Connections.Cat.CompareTo(_item.Extra().Connections.Cat);
+                if (result == 0)
+                    result = __instance.Extra().Connections.Num.CompareTo(_item.Extra().Connections.Num);
+            }
+            else
+                result = __instance.City.Destinations.CountBadDestinations().CompareTo(_item.City.Destinations.CountBadDestinations());
         }
 
         // 6 trust

@@ -1,6 +1,5 @@
 ﻿using HarmonyLib;
 using STM.Data;
-using STM.Data.Entities;
 using STM.GameWorld;
 using STM.GameWorld.AI;
 using STM.GameWorld.Users;
@@ -11,7 +10,7 @@ using STMG.Utility;
 using STVisual.Utility;
 using Utilities;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIFloating;
 
 
 [HarmonyPatch(typeof(HubUI))]

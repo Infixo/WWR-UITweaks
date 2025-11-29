@@ -35,7 +35,7 @@ public static class CityWorldGraphics_Patches
 
         // Infixo: get the color based on overcrowding
         if (layers.Scene.Map.view == 0)
-            color = city.OvercrowdedColor(color);
+            color = layers.Scene.Settings.Game_mode == GameMode.Discover ? city.DiscoverColor(color) : city.OvercrowdedColor(color);
 
         // Scale
         float _s = (city.City.Capital ? 0.002f : 0.0015f);
@@ -287,6 +287,19 @@ public static class CityWorldGraphics_Patches
             _result.AddSingle(city.Routes[i].Instructions);
         }
         return _result.Count;
+    }
+
+    internal static Color DiscoverColor(this CityUser city, Color defColor)
+    {
+        decimal _worst = 1m;
+        for (int i = 0; i < city.Destinations.Items.Count; i++)
+        {
+            if (city.Destinations.Items[i].Full_discover)
+                return Color.Red;
+            if (city.Destinations.Items[i].Percent < _worst)
+                _worst = city.Destinations.Items[i].Percent;
+        }
+        return _worst < 0.25m ? Color.DarkOrange : (_worst < 0.5m ? Color.Yellow : defColor);
     }
 
 

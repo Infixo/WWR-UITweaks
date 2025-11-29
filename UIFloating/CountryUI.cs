@@ -8,8 +8,9 @@ using STM.UI;
 using STM.UI.Floating;
 using STMG.UI.Control;
 using STVisual.Utility;
+using UITweaks.UIExplorer;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIFloating;
 
 
 [HarmonyPatch(typeof(CountryUI))]

@@ -10,7 +10,7 @@ using STVisual.Utility;
 using System.Runtime.CompilerServices;
 using Utilities;
 
-namespace UITweaks.Patches;
+namespace UITweaks.UIExplorer;
 
 
 [HarmonyPatch(typeof(ExplorerCountry))]
@@ -20,6 +20,8 @@ public static class ExplorerCountry_Patches
     public class ExtraData
     {
         public string Name = "";
+        public bool Discover = false;
+        public long Price = 0L;
     }
     private static readonly ConditionalWeakTable<ExplorerCountry, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerCountry item) => _extras.GetOrCreateValue(item);
@@ -45,7 +47,7 @@ public static class ExplorerCountry_Patches
     }
 
     [HarmonyPatch(typeof(InfoUI), "GetCountriesCategories"), HarmonyPrefix]
-    public static bool InfoUI_GetCountriesCategories_Prefix(ref string[] __result)
+    public static bool InfoUI_GetCountriesCategories_Prefix(InfoUI __instance, ref string[] __result, Session ___Session)
     {
         __result =
         [
@@ -56,6 +58,8 @@ public static class ExplorerCountry_Patches
         "<!cicon_locate>", // 4
         Localization.GetCity("country_trust"), // 5
         ];
+        if (___Session.Scene.Settings.Game_mode == GameMode.Discover)
+            __result[5] = Localization.GetGeneral("price");
         return false;
     }
 
@@ -137,7 +141,7 @@ public static class ExplorerCountry_Patches
         __instance.Labels[2] = _level;
 
         // 3 Average
-        Label _average = LabelPresets.GetDefault(StrConversions.CleanNumber((float)level / (float)cities), scene.Engine);
+        Label _average = LabelPresets.GetDefault(cities > 0 ? StrConversions.CleanNumber((float)level / (float)cities) : "-", scene.Engine);
         _average.Margin_local = new FloatSpace(MainData.Margin_content);
         _average.horizontal_alignment = HorizontalAlignment.Center;
         main_grid.Transfer(_average, 3, 0);
@@ -158,16 +162,31 @@ public static class ExplorerCountry_Patches
 
         // 5 Trust
         Label _trust = LabelPresets.GetDefault("", scene.Engine);
-        if (__instance.Country.Dominated != ushort.MaxValue)
+        if (scene.Settings.Game_mode == GameMode.Discover)
         {
-            Company comp = scene.Session.Companies[__instance.Country.Dominated];
-            __instance.Extra().Name = comp.Info.Name;
-            _trust.Text = comp.GetName();
-            if (comp.ID == scene.Session.Player)
-                _trust.Color = LabelPresets.Color_positive;
+            __instance.Extra().Discover = true;
+            if (__instance.Country.HasVisibleCities(scene))
+                _trust.Text = "-";
+            else
+            {
+                __instance.Extra().Price = scene.Session.GetCountryPrice(__instance.Country);
+                _trust.Text = StrConversions.GetBalance(__instance.Extra().Price, scene.currency);
+            }
+            _trust.horizontal_alignment = HorizontalAlignment.Center;
+        }
+        else
+        {
+            if (__instance.Country.Dominated != ushort.MaxValue)
+            {
+                Company comp = scene.Session.Companies[__instance.Country.Dominated];
+                __instance.Extra().Name = comp.Info.Name;
+                _trust.Text = comp.GetName();
+                if (comp.ID == scene.Session.Player)
+                    _trust.Color = LabelPresets.Color_positive;
+            }
+            _trust.horizontal_alignment = HorizontalAlignment.Left;
         }
         _trust.Margin_local = new FloatSpace(MainData.Margin_content);
-        _trust.horizontal_alignment = HorizontalAlignment.Left;
         main_grid.Transfer(_trust, 5, 0);
         __instance.Labels[5] = _trust;
 
@@ -224,14 +243,19 @@ public static class ExplorerCountry_Patches
         // 5 Trust
         if (sort_id % __instance.Labels.Length == 5)
         {
-            ushort domThis = __instance.Country.Dominated;
-            ushort domItem = _item.Country.Dominated;
-            if (domThis != ushort.MaxValue && domItem != ushort.MaxValue)
-                result = _item.Extra().Name.CompareTo(__instance.Extra().Name);
-            else if (domThis == ushort.MaxValue && domItem == ushort.MaxValue)
-                result = 0;
+            if (__instance.Extra().Discover)
+                result = __instance.Extra().Price.CompareTo(_item.Extra().Price);
             else
-                result = domThis == ushort.MaxValue ? -1 : +1;
+            {
+                ushort domThis = __instance.Country.Dominated;
+                ushort domItem = _item.Country.Dominated;
+                if (domThis != ushort.MaxValue && domItem != ushort.MaxValue)
+                    result = _item.Extra().Name.CompareTo(__instance.Extra().Name);
+                else if (domThis == ushort.MaxValue && domItem == ushort.MaxValue)
+                    result = 0;
+                else
+                    result = domThis == ushort.MaxValue ? -1 : +1;
+            }
         }
 
         // Fail-safe
