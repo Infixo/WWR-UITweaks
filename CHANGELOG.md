@@ -1,5 +1,10 @@
 ## Changelog
 
+- v0.11.2 (2025-12-02)
+  - Improvements to support Dicovery mode.
+  - Map and the city explorer shows risk of triggering the timer.
+  - The country explorer shows where the next city will spawn.
+
 - v0.11.1 (2025-11-28)
   - Explorer city uses colors to show Trust better.
   - Technial change for better integration with AITweaks.

@@ -6,6 +6,7 @@
 ### Various
 - World view.
   - City names are colored based on how overcrowded their indirect capacity is. Red cities no longer accept indirect passengers.
+  - (0.11) In the Discover mode, colors show the risk of triggering the timer.
   - (0.5) Resorts are marked with an umbrella icon.
   - (0.6) RClick opens routes, w/ Shift opens a Hub.
   - (0.6) Info about number of routes in a city available on the map.
@@ -24,11 +25,13 @@
 - (0.11) Destinations changed notification uses colors to mark connected cities.
 
 ### Explorers (new columns)
-- Countries. Average city level, how many cities are not connected to any lines, (0.11) trusted company.
+- Countries.
+  - Average city level, how many cities are not connected to any lines.
+  - (0.11) Trusted company / Where the next city will spawn in the Discover mode.
 - Cities.
   - Indirect capacity, biggest crowd, fulfillment, trust, buildings.
   - (0.2, 0.11) Filters and counters for city features and buildings.
-  - (0.3) Number of unfulfilled destinations.
+  - (0.3) Number of unfulfilled destinations / (0.11) Risk of triggering the timer in the Discover mode.
 - Lines.
   - Num of cities, total length, (0.10) quarter throughput, (0.4) evaluation flag.
   - (0.2) Search by Country.
