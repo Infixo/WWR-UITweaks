@@ -21,7 +21,7 @@ public static class ExplorerCountry_Patches
     {
         public string Name = "";
         public bool Discover = false;
-        public long Price = 0L;
+        public int Delta = 0;
     }
     private static readonly ConditionalWeakTable<ExplorerCountry, ExtraData> _extras = [];
     public static ExtraData Extra(this ExplorerCountry item) => _extras.GetOrCreateValue(item);
@@ -59,7 +59,7 @@ public static class ExplorerCountry_Patches
         Localization.GetCity("country_trust"), // 5
         ];
         if (___Session.Scene.Settings.Game_mode == GameMode.Discover)
-            __result[5] = Localization.GetGeneral("price");
+            __result[5] = "Next <!cicon_city>";
         return false;
     }
 
@@ -74,6 +74,10 @@ public static class ExplorerCountry_Patches
                 break;
             case 4:
                 _tooltip = TooltipPreset.Get("Not connected cities", engine);
+                break;
+            case 5:
+                if (ui.GetPrivateField<Session>("Session").Scene.Settings.Game_mode == GameMode.Discover)
+                    _tooltip = TooltipPreset.Get("Country with the highest score will spawn the next city.", engine);
                 break;
         }
         _tooltip?.AddToControlBellow(parent);
@@ -166,12 +170,12 @@ public static class ExplorerCountry_Patches
         {
             __instance.Extra().Discover = true;
             if (__instance.Country.HasVisibleCities(scene))
-                _trust.Text = "-";
-            else
             {
-                __instance.Extra().Price = scene.Session.GetCountryPrice(__instance.Country);
-                _trust.Text = StrConversions.GetBalance(__instance.Extra().Price, scene.currency);
+                __instance.Extra().Delta = __instance.Country.CallPrivateMethod<int>("GetVisibleCityDelta", []);
+                _trust.Text = __instance.Extra().Delta.ToString();
             }
+            else
+                _trust.Text = "-";
             _trust.horizontal_alignment = HorizontalAlignment.Center;
         }
         else
@@ -244,7 +248,7 @@ public static class ExplorerCountry_Patches
         if (sort_id % __instance.Labels.Length == 5)
         {
             if (__instance.Extra().Discover)
-                result = __instance.Extra().Price.CompareTo(_item.Extra().Price);
+                result = __instance.Extra().Delta.CompareTo(_item.Extra().Delta);
             else
             {
                 ushort domThis = __instance.Country.Dominated;
