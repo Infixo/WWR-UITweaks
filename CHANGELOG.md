@@ -1,5 +1,9 @@
 ## Changelog
 
+- v1.0.0 (2025-12-23)
+  - Version 1.0!
+  - Updated for Patch 1.2.1.
+
 - v0.11.2 (2025-12-02)
   - Improvements to support Dicovery mode.
   - Map and the city explorer shows risk of triggering the timer.

@@ -274,7 +274,7 @@ internal class InterestUI : IFloatUI
         {
             // Find neighbors
             byte _countryId = city.City.Country_id;
-            foreach (City other in Scene.Countries[_countryId].Cities)
+            foreach (City other in Scene.Countries[_countryId].Cities.Where(x => x.User.Level > 0))
                 if (GameScene.GetDistance(city.Location, other.Location) < epsilon &&
                     !Cities.Contains(other.User))
                     Cities.Add(other.User);

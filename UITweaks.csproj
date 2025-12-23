@@ -7,9 +7,9 @@
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Product>WWR UITweaks</Product>
-    <InformationalVersion>0.11.2</InformationalVersion>
-    <AssemblyVersion>0.11.2</AssemblyVersion>
-    <FileVersion>0.11.2</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
     <Copyright>Copyright (C) 2025 Infixo</Copyright>
   </PropertyGroup>
   
