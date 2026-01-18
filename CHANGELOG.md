@@ -1,5 +1,8 @@
 ## Changelog
 
+- v1.0.1 (2026-01-18)
+  - Updated for Patch 1.2.5.
+
 - v1.0.0 (2025-12-23)
   - Version 1.0!
   - Updated for Patch 1.2.1.

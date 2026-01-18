@@ -18,8 +18,8 @@ namespace UITweaks.Patches;
 [HarmonyPatch(typeof(CityWorldGraphics))]
 public static class CityWorldGraphics_Patches
 {
-    [HarmonyPatch("DrawName"), HarmonyPrefix]
-    public static bool CityWorldGraphics_DrawName_Prefix(bool hover, CityUser city, float height, Vector2 offset, Color color, ThreadDrawLayer layers, GameEngine engine)
+    [HarmonyPatch("DrawName", [typeof(bool), typeof(CityUser), typeof(bool), typeof(float), typeof(Vector2), typeof(Color), typeof(ThreadDrawLayer), typeof(GameEngine)]), HarmonyPrefix]
+    public static bool CityWorldGraphics_DrawName_Prefix(bool hover, CityUser city, bool collision, float height, Vector2 offset, Color color, ThreadDrawLayer layers, GameEngine engine)
     {
         if (layers.Zoom > 25f)
         {
@@ -159,29 +159,31 @@ public static class CityWorldGraphics_Patches
             }
             _font.DrawString(_layer, _name, offset, color, _s, not_trimmed: true, markup: true, height);
         }
-        Vector2 _size = _font.MeasureString(city.Name, _s);
-        VectorRectangle _bounds = new VectorRectangle(_size.X, _size.Y);
-        Vector2 _screen = layers.Camera.ToScreen2D(new Vector3(offset.X, height, offset.Y));
-        _screen = layers.Camera.ToWorld2D(_screen);
-        _bounds.Offset(_screen.X + _size.X / 2f, _screen.Y + _size.Y / 2f);
-        _bounds.y2 += 0.1f;
-        if (hover)
+        if (collision)
         {
-            _bounds.Expand(0.05f);
+            Vector2 _size = _font.MeasureString(city.Name, _s);
+            VectorRectangle _bounds = new VectorRectangle(_size.X, _size.Y);
+            Vector2 _screen = layers.Camera.ToScreen2D(new Vector3(offset.X, height, offset.Y));
+            _screen = layers.Camera.ToWorld2D(_screen);
+            _bounds.Offset(_screen.X + _size.X / 2f, _screen.Y + _size.Y / 2f);
+            _bounds.y2 += 0.1f;
+            if (hover)
+            {
+                _bounds.Expand(0.05f);
+            }
+            if (_collision)
+            {
+                layers.Collisions.GetNext().Set(city, _bounds.Expand(0.1f), -1);
+            }
+            ((GameSprite)MainData.Panel_blur_shadow).DrawHeight(layers.CitiesAO(), new VectorRectangle(offset.X - 0.5f, offset.Y - 0.2f, offset.X + _size.X + 0.5f, offset.Y + 0.4f), Color.Black * ((float)(int)color.A / 255f) * 0.8f, height);
         }
-        if (_collision)
-        {
-            layers.Collisions.GetNext().Set(city, _bounds.Expand(0.1f), -1);
-        }
-        ((GameSprite)MainData.Panel_blur_shadow).DrawHeight(layers.CitiesAO(), new VectorRectangle(offset.X - 0.5f, offset.Y - 0.2f, offset.X + _size.X + 0.5f, offset.Y + 0.4f), Color.Black * ((float)(int)color.A / 255f) * 0.8f, height);
-
         // END
         return false; // skip the original
     }
 
 
     [HarmonyPatch("DrawBottomInfo"), HarmonyPrefix]
-    public static bool DrawBottomInfo(bool hover, CityUser city, float height, Vector2 offset, Color color, ThreadDrawLayer layers, GameEngine engine)
+    public static bool CityWorldGraphics_DrawBottomInfo_Prefix(bool hover, CityUser city, float height, Vector2 offset, Color color, ThreadDrawLayer layers, GameEngine engine)
     {
         if (layers.Zoom > 25f)
         {
